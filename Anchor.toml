@@ -1,0 +1,25 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+kirite = "4bUHrDPuRcoYPU7UTLojXtxJsWoCj3HJbKX9oLnEnYy6"
+
+[programs.devnet]
+kirite = "4bUHrDPuRcoYPU7UTLojXtxJsWoCj3HJbKX9oLnEnYy6"
+
+[programs.mainnet]
+kirite = "4bUHrDPuRcoYPU7UTLojXtxJsWoCj3HJbKX9oLnEnYy6"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[workspace]
+members = ["programs/kirite"]
