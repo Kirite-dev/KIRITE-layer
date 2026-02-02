@@ -1,0 +1,27 @@
+{
+  "name": "@kirite/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the KIRITE privacy protocol on Solana",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.87.0",
+    "bn.js": "^5.2.1",
+    "tweetnacl": "^1.0.3",
+    "bs58": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "@types/bn.js": "^5.1.0",
+    "@types/bs58": "^4.0.4"
+  },
+  "license": "MIT"
+}
