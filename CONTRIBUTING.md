@@ -183,3 +183,4 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). I
 ## License
 
 By contributing to KIRITE, you agree that your contributions will be licensed under the [MIT License](./LICENSE).
+<!-- updated --> #2
