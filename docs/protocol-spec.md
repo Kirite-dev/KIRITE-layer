@@ -399,3 +399,4 @@ The recipient publishes `(S, V)` as their stealth meta-address.
 | 6007 | `Unauthorized` | Signer is not the authority |
 | 6008 | `InvalidDenomination` | Amount does not match pool denomination |
 | 6009 | `InvalidMint` | Mint mismatch |
+<!-- spec note --> #4
