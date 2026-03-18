@@ -121,3 +121,4 @@ export const DISCRIMINATOR_SIZE = 8;
 
 /** Maximum memo length in bytes */
 export const MAX_MEMO_LENGTH = 256;
+// const rev #7
