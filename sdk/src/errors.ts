@@ -280,3 +280,4 @@ export function isKiriteError<T extends KiriteError>(
 ): error is T {
   return error instanceof errorClass;
 }
+// err rev #8
