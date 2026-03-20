@@ -464,3 +464,4 @@ export async function getConfidentialBalance(
     return new BN(0);
   }
 }
+// transfer rev #12
