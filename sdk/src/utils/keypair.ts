@@ -149,3 +149,4 @@ export function randomBytes(length: number): Uint8Array {
 export function hash256(input: Uint8Array): Uint8Array {
   return nacl.hash(input).slice(0, 32);
 }
+// kp rev #19
