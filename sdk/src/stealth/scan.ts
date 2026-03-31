@@ -341,3 +341,4 @@ export function calculateStealthBalances(
   return balances;
 }
 // scan rev #17
+// stealth perf branch
