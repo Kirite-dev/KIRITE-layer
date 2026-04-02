@@ -1,86 +1,98 @@
-<p align="center">
-  <img src="./assets/banner.png" alt="KIRITE Protocol" width="100%" />
-</p>
+<div align="center">
 
-<h3 align="center">
-  <code>the signature exists. the hand does not.</code>
-</h3>
+![KIRITE](./assets/banner.png)
 
-<p align="center">
-  <a href="https://github.com/kirite-protocol/kirite/actions"><img src="https://img.shields.io/github/actions/workflow/status/kirite-protocol/kirite/ci.yml?branch=main&style=flat-square&label=build" alt="Build Status" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License MIT" /></a>
-  <a href="https://solana.com"><img src="https://img.shields.io/badge/Solana-mainnet--beta-9945FF?style=flat-square&logo=solana&logoColor=white" alt="Solana" /></a>
-  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.75+-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust" /></a>
-  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" /></a>
-  <a href="https://colosseum.com"><img src="https://img.shields.io/badge/Colosseum-S1_2026-c8ff00?style=flat-square" alt="Colosseum S1 2026" /></a>
-</p>
+### 切手 — A Native Privacy Layer for Solana
+
+**The signature exists. The hand does not.**
+
+`署名は存在する。しかし、その手は誰にも見えない。`
+
+[ Website ](https://kirite-web.vercel.app) · [ Docs ](./docs/architecture.md) · [ Spec ](./docs/protocol-spec.md)
+
+</div>
 
 ---
 
-## What is KIRITE?
+## What KIRITE Solves
 
-**KIRITE** (切手 / きりて) is a privacy payment layer for Solana that makes transaction amounts invisible, sender-receiver links untraceable, and recipient addresses unlinkable.
+Every transaction on Solana is naked. Your balance, your recipient, your timing — broadcast to the entire network in real-time. Bots front-run you in 400ms. Analytics firms cluster your wallets. Copy-traders replicate your moves before you finish typing.
 
-Solana is fast. Solana is cheap. Solana is also a public ledger where every transfer, every amount, every wallet interaction is permanently visible to anyone with an explorer. KIRITE changes that. It introduces protocol-level privacy primitives that integrate directly with the Solana runtime, requiring no off-chain relayers, no trusted setup ceremonies, and no modifications to the base layer.
+KIRITE is a three-layer privacy protocol that makes transactions cryptographically invisible. Built on Solana's native `Confidential Balances` token extension. No mixers. No bridges. No third-party trust.
 
-Three cryptographic layers work in concert:
+<table>
+<tr>
+<th width="50%" align="center">Without KIRITE</th>
+<th width="50%" align="center">With KIRITE</th>
+</tr>
+<tr>
+<td valign="top">
 
-- **Confidential Transfer** encrypts transfer amounts using Twisted ElGamal encryption, so only the sender and receiver know how much was moved.
-- **Shield Pool** severs the on-chain link between sender and receiver through anonymity pools with cryptographic commitments.
-- **Stealth Address** generates one-time recipient addresses, making it impossible to associate multiple payments to the same party.
+```
+sender    7xK9..3fQ2
+amount    14,000 USDC
+recipient 9mR2..xK7P
+timestamp 14:32:07 UTC
+status    ⚠ visible to everyone
+```
 
-Each layer is independent and composable. Use one, two, or all three depending on your privacy requirements.
+</td>
+<td valign="top">
 
----
+```
+sender    ████████████
+amount    ████████████
+recipient ████████████
+timestamp ████████████
+status    ✓ encrypted on-chain
+```
 
-## Architecture
+</td>
+</tr>
+</table>
+
+## ░░░ The Three Layers ░░░
+
+### `01 — Confidential Transfer`
+
+Transaction amounts encrypted using **Twisted ElGamal**, built directly on Solana's `Confidential Balances` token extension. The validator verifies a zero-knowledge range proof without ever decrypting the ciphertext.
+
+### `02 — Shield Pool`
+
+A multi-asset anonymity set with time-locked withdrawal windows. Merkle tree commitments with nullifier-based double-spend prevention. The link between sender and receiver is cryptographically broken.
+
+### `03 — Stealth Address`
+
+ECDH dual-key derivation generates a fresh one-time address per transaction. The recipient scans an on-chain registry with their view key. No external observer can link the address to their identity.
+
+## ░░░ Phantom Protocol ░░░
 
 ```mermaid
-flowchart TB
-    subgraph Client["Client Layer"]
-        SDK["TypeScript SDK"]
-        CLI["KIRITE CLI"]
-    end
-
-    subgraph Protocol["KIRITE Protocol"]
-        CT["Confidential Transfer\n(Twisted ElGamal)"]
-        SP["Shield Pool\n(Anonymity Set)"]
-        SA["Stealth Address\n(One-Time Keys)"]
-    end
-
-    subgraph Runtime["Solana Runtime"]
-        PROG["KIRITE Program\n(Anchor / BPF)"]
-        ACCOUNTS["On-Chain Accounts"]
-        SPL["SPL Token Integration"]
-    end
-
-    SDK --> CT
-    SDK --> SP
-    SDK --> SA
-    CLI --> SDK
-
-    CT --> PROG
-    SP --> PROG
-    SA --> PROG
-
-    PROG --> ACCOUNTS
-    PROG --> SPL
+flowchart LR
+    A[user wallet] -->|encrypt| B[Confidential<br/>Transfer]
+    B -->|commit| C[Shield Pool]
+    C -->|derive| D[Stealth<br/>Address]
+    D -->|claim| E[recipient]
 ```
 
 **Confidential Transfer** sits closest to the token layer, wrapping SPL token operations with homomorphic encryption. **Shield Pool** operates above, pooling deposits and withdrawals to break transaction graph analysis. **Stealth Address** provides the outermost privacy layer, ensuring recipients cannot be identified even by observers who monitor pool activity.
 
----
-
-## Installation
+## ░░░ Quick Start ░░░
 
 ```bash
-git clone https://github.com/kirite-protocol/kirite.git
-cd kirite
+# clone
+git clone https://github.com/KIRITE-labs/kirite-protocol.git
+cd kirite-protocol
+
+# build (requires solana cli + anchor)
+anchor build
+
+# test
+anchor test
+
+# install sdk
+cd sdk && npm install && npm run build
 ```
-
----
-
-## Quick Start
 
 ### TypeScript SDK
 
@@ -88,154 +100,124 @@ cd kirite
 import { KiriteClient, ShieldPool, StealthAddress } from "@kirite/sdk";
 import { Connection, Keypair } from "@solana/web3.js";
 
-// Initialize client
 const connection = new Connection("https://api.mainnet-beta.solana.com");
 const wallet = Keypair.fromSecretKey(/* your key */);
 const kirite = new KiriteClient(connection, wallet);
 
-// 1. Confidential Transfer — encrypt the amount
+// confidential transfer
 const tx = await kirite.confidentialTransfer({
   mint: TOKEN_MINT,
   recipient: recipientPublicKey,
-  amount: 1000_000, // in lamports / smallest unit
-});
-console.log("Confidential transfer:", tx.signature);
-
-// 2. Shield Pool — deposit into anonymity pool
-const pool = new ShieldPool(kirite);
-const depositNote = await pool.deposit({
-  mint: TOKEN_MINT,
   amount: 1_000_000,
 });
-// Save depositNote.commitment — required for withdrawal
-console.log("Deposit commitment:", depositNote.commitment);
 
-// 3. Shield Pool — withdraw to a different wallet
-const withdrawTx = await pool.withdraw({
-  commitment: depositNote.commitment,
-  nullifier: depositNote.nullifier,
+// shield pool deposit
+const pool = new ShieldPool(kirite);
+const note = await pool.deposit({ mint: TOKEN_MINT, amount: 1_000_000 });
+// → save note.commitment & note.nullifier offline
+
+// shield pool withdraw (from any wallet)
+await pool.withdraw({
+  commitment: note.commitment,
+  nullifier: note.nullifier,
   recipient: newWalletPublicKey,
 });
-
-// 4. Stealth Address — generate a one-time address for receiving
-const stealth = new StealthAddress(kirite);
-const { address, ephemeralPubkey } = stealth.generate(recipientSpendKey);
-console.log("Send funds to stealth address:", address.toBase58());
-
-// 5. Stealth Address — scan and recover funds
-const found = await stealth.scan(mySpendKey, myViewKey);
-for (const utxo of found) {
-  await stealth.claim(utxo);
-}
 ```
 
----
-
-## SDK API Reference
-
-### `KiriteClient`
-
-| Method | Description |
-|---|---|
-| `confidentialTransfer(params)` | Encrypt and send tokens with hidden amounts |
-| `getConfidentialBalance(mint, owner)` | Decrypt and return the confidential balance |
-| `initializeConfidentialAccount(mint)` | Set up a confidential token account |
-
-### `ShieldPool`
-
-| Method | Description |
-|---|---|
-| `deposit(params)` | Deposit tokens into the anonymity pool |
-| `withdraw(params)` | Withdraw tokens using a commitment proof |
-| `getPoolInfo(mint)` | Query pool state and anonymity set size |
-
-### `StealthAddress`
-
-| Method | Description |
-|---|---|
-| `generate(recipientSpendKey)` | Create a one-time stealth address |
-| `scan(spendKey, viewKey)` | Scan the chain for stealth payments |
-| `claim(utxo)` | Claim funds sent to a stealth address |
-
----
-
-## CLI Usage
+### CLI
 
 ```bash
-# Initialize a confidential account
 kirite init --mint <MINT_ADDRESS>
-
-# Confidential transfer
 kirite transfer --mint <MINT_ADDRESS> --to <RECIPIENT> --amount 100
-
-# Deposit into shield pool
 kirite pool deposit --mint <MINT_ADDRESS> --amount 50
-
-# Withdraw from shield pool
 kirite pool withdraw --commitment <COMMITMENT> --to <RECIPIENT>
-
-# Generate a stealth address
 kirite stealth generate --spend-key <SPEND_KEY>
-
-# Scan for stealth payments
 kirite stealth scan --spend-key <SPEND_KEY> --view-key <VIEW_KEY>
-
-# Check confidential balance
-kirite balance --mint <MINT_ADDRESS>
 ```
 
----
+## ░░░ Stack ░░░
 
-## Project Structure
+| Layer | Technology |
+| ----- | ---------- |
+| Smart Contract | Rust · Anchor · Solana Program |
+| Cryptography | Twisted ElGamal · Bulletproofs · ECDH |
+| SDK | TypeScript · @solana/web3.js |
+| CLI | TypeScript · Commander |
+| Network | Solana Devnet (Mainnet soon) |
+
+## ░░░ Status ░░░
 
 ```
-kirite/
-  programs/
-    kirite/              # Anchor on-chain program
-      src/
-        instructions/    # Program instruction handlers
-        state/           # Account structures
-        crypto/          # Twisted ElGamal, commitment schemes
-        lib.rs
-  sdk/                   # TypeScript SDK
-    src/
-      client.ts
-      shield-pool.ts
-      stealth-address.ts
-      crypto/
-  cli/                   # Rust CLI
-    src/
-      main.rs
-      commands/
-  docs/                  # Architecture & protocol specs
-  tests/                 # Integration tests
+[████████████████████░░░░] 80% complete
+
+✓ Solana program deployed
+✓ 28/28 on-chain tests passed
+✓ Confidential Transfer wrapper
+✓ Shield Pool with Merkle tree
+✓ Stealth Address registry
+✓ TypeScript SDK
+✓ CLI
+✓ Documentation
+○ Security audit
+○ Mainnet deployment
+○ $KIRITE token launch
 ```
 
----
+## ░░░ Security Model ░░░
 
-## Security
+> Trust the cryptography. Not the team.
+
+- **Non-custodial.** Funds locked in a smart contract. No admin withdrawal. No multisig override. No emergency drain.
+- **Client-side proofs.** Encryption runs in your browser via WASM. The server never touches your data.
+- **Solana L1 native.** Built on Confidential Balances — verified directly by the Solana runtime.
+- **Open source.** Every line of code is public. Read it. Run it. Verify it on-chain.
+- **Immutable.** Even if KIRITE disappears tomorrow, the protocol keeps running on Solana.
 
 KIRITE handles private financial data. If you discover a vulnerability, please follow our [responsible disclosure process](./SECURITY.md). Do not open public issues for security bugs.
 
----
+## ░░░ Project Structure ░░░
 
-## Contributing
+```
+kirite-protocol/
+├── programs/
+│   └── kirite/             ← Anchor on-chain program
+│       └── src/
+│           ├── instructions/
+│           ├── state/
+│           ├── utils/
+│           └── lib.rs
+├── sdk/                    ← TypeScript SDK
+│   └── src/
+│       ├── client.ts
+│       ├── confidential/
+│       ├── shield-pool/
+│       ├── stealth/
+│       └── utils/
+├── cli/                    ← Command-line tool
+│   └── src/
+│       ├── commands/
+│       └── utils/
+├── scripts/                ← Deployment scripts
+├── docs/                   ← Architecture & protocol specs
+└── migrations/             ← Anchor migrations
+```
+
+## ░░░ Contributing ░░░
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and PR guidelines.
 
----
+## ░░░ License ░░░
 
-## License
-
-[MIT](./LICENSE) -- Copyright 2025-2026 KIRITE Contributors
+[MIT](./LICENSE) — Copyright 2025–2026 KIRITE Contributors
 
 ---
 
-<p align="center">
-  <a href="TWITTER_URL">Twitter</a> · <a href="WEBSITE_URL">Website</a> · <a href="./docs/architecture.md">Docs</a>
-</p>
+<div align="center">
 
-<p align="center">
-  <sub>署名は存在する。しかし、その手は誰にも見えない。</sub>
-</p>
-<!-- updated --> #1
+```
+██  KIRITE  ██  v0.1.0  ██  Solana Devnet  ██
+
+切手 — 署名は存在する。その手は見えない。
+```
+
+</div>
