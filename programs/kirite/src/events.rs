@@ -1,9 +1,5 @@
 use anchor_lang::prelude::*;
 
-// ============================================================================
-// Protocol Lifecycle Events
-// ============================================================================
-
 #[event]
 pub struct ProtocolInitialized {
     pub authority: Pubkey,
@@ -23,10 +19,6 @@ pub struct ProtocolResumed {
     pub authority: Pubkey,
     pub timestamp: i64,
 }
-
-// ============================================================================
-// Shield Pool Events
-// ============================================================================
 
 #[event]
 pub struct ShieldPoolCreated {
@@ -65,10 +57,6 @@ pub struct PoolFrozen {
     pub timestamp: i64,
 }
 
-// ============================================================================
-// Confidential Transfer Events
-// ============================================================================
-
 #[event]
 pub struct ConfidentialTransferExecuted {
     pub sender: Pubkey,
@@ -87,10 +75,6 @@ pub struct ConfidentialAccountCreated {
     pub timestamp: i64,
 }
 
-// ============================================================================
-// Stealth Address Events
-// ============================================================================
-
 #[event]
 pub struct StealthAddressRegistered {
     pub owner: Pubkey,
@@ -107,10 +91,6 @@ pub struct StealthAddressResolved {
     pub stealth_address: Pubkey,
     pub timestamp: i64,
 }
-
-// ============================================================================
-// Governance Events
-// ============================================================================
 
 #[event]
 pub struct FeeUpdated {

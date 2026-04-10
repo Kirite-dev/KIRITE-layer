@@ -141,28 +141,17 @@ export class KiriteClient {
     }
   }
 
-  // ─── Connection Management ─────────────────────────────────────
-
-  /**
-   * Validates the RPC connection.
-   * @throws ConnectionError if the connection is unhealthy
-   */
+  /** @throws ConnectionError if the connection is unhealthy */
   async connect(): Promise<void> {
     await validateConnection(this.connection);
     this.isConnected = true;
   }
 
-  /**
-   * Returns the underlying Solana connection.
-   */
   getConnection(): Connection {
     return this.connection;
   }
 
-  /**
-   * Returns the wallet public key.
-   * @throws WalletNotConnectedError if no wallet is set
-   */
+  /** @throws WalletNotConnectedError if no wallet is set */
   getWalletPublicKey(): PublicKey {
     if (!this.wallet) {
       throw new WalletNotConnectedError();
@@ -170,19 +159,12 @@ export class KiriteClient {
     return this.wallet.publicKey;
   }
 
-  /**
-   * Sets or replaces the wallet keypair.
-   * @param wallet - New wallet keypair
-   */
   setWallet(wallet: Keypair): void {
     this.wallet = wallet;
     this.elGamalKeypair = deriveElGamalKeypair(wallet);
   }
 
-  /**
-   * Returns the ElGamal public key for this wallet.
-   * @throws WalletNotConnectedError if no wallet is set
-   */
+  /** @throws WalletNotConnectedError if no wallet is set */
   getElGamalPublicKey(): Uint8Array {
     if (!this.elGamalKeypair) {
       throw new WalletNotConnectedError();
@@ -190,29 +172,14 @@ export class KiriteClient {
     return this.elGamalKeypair.publicKey;
   }
 
-  /**
-   * Returns the current program ID.
-   */
   getProgramId(): PublicKey {
     return this.programId;
   }
 
-  /**
-   * Checks if the client is connected and has a wallet.
-   */
   isReady(): boolean {
     return this.isConnected && this.wallet !== null;
   }
 
-  // ─── Confidential Transfers ────────────────────────────────────
-
-  /**
-   * Initializes a confidential token account for the connected wallet.
-   *
-   * @param mint - Token mint
-   * @param options - Transaction options
-   * @returns Transaction signature
-   */
   async initConfidentialAccount(
     mint: PublicKey,
     options?: TransactionOptions
@@ -240,13 +207,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Executes a confidential transfer with encrypted amounts.
-   *
-   * @param params - Transfer parameters
-   * @param options - Transaction options
-   * @returns Transfer result
-   */
   async confidentialTransfer(
     params: ConfidentialTransferParams,
     options?: TransactionOptions
@@ -262,12 +222,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Gets the decrypted balance of the connected wallet's confidential account.
-   *
-   * @param mint - Token mint
-   * @returns Decrypted balance
-   */
   async getConfidentialBalance(mint: PublicKey): Promise<BN> {
     this.requireWallet();
 
@@ -279,13 +233,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Decrypts incoming confidential transfers.
-   *
-   * @param mint - Token mint to query
-   * @param fromSlot - Start slot (optional)
-   * @returns Array of decrypted transfers
-   */
   async decryptTransfers(
     mint: PublicKey,
     fromSlot?: number
@@ -301,37 +248,16 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Encrypts an amount for a recipient.
-   *
-   * @param amount - Amount to encrypt
-   * @param recipientElGamalPubkey - Recipient's ElGamal public key
-   * @returns Encrypted amount
-   */
   encryptAmount(amount: BN, recipientElGamalPubkey: Uint8Array) {
     return encryptAmount(amount, recipientElGamalPubkey);
   }
 
-  /**
-   * Decrypts an encrypted amount using the connected wallet's key.
-   *
-   * @param encrypted - Encrypted amount
-   * @returns Decrypted BN value
-   */
   decryptAmount(encrypted: { ephemeralKey: Uint8Array; ciphertext: Uint8Array; randomness: Uint8Array }): BN {
     this.requireWallet();
     return decryptAmount(encrypted, this.elGamalKeypair!.secretKey);
   }
 
-  // ─── Shield Pool Operations ────────────────────────────────────
-
-  /**
-   * Deposits tokens into a shield pool.
-   *
-   * @param params - Deposit parameters
-   * @param options - Transaction options
-   * @returns Deposit result with note for later withdrawal
-   */
+  /** @returns Deposit result with note needed for later withdrawal */
   async deposit(
     params: DepositParams,
     options?: TransactionOptions
@@ -347,13 +273,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Withdraws tokens from a shield pool using a deposit note.
-   *
-   * @param params - Withdrawal parameters
-   * @param options - Transaction options
-   * @returns Withdrawal result
-   */
   async withdraw(
     params: WithdrawParams,
     options?: TransactionOptions
@@ -369,101 +288,46 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Fetches the state of a shield pool.
-   *
-   * @param poolId - Pool address
-   * @returns Pool state
-   */
   async getPoolState(poolId: PublicKey): Promise<ShieldPoolState> {
     return fetchPoolState(this.connection, poolId, this.programId);
   }
 
-  /**
-   * Fetches all pools for a given token mint.
-   *
-   * @param mint - Token mint
-   * @returns Array of pool states
-   */
   async getPoolsByMint(mint: PublicKey): Promise<ShieldPoolState[]> {
     return fetchPoolsByMint(this.connection, mint, this.programId);
   }
 
-  /**
-   * Fetches all shield pools in the protocol.
-   * @returns Array of pool states
-   */
   async getAllPools(): Promise<ShieldPoolState[]> {
     return fetchAllPools(this.connection, this.programId);
   }
 
-  /**
-   * Checks if a deposit note's nullifier has been spent.
-   *
-   * @param note - Deposit note or raw nullifier bytes
-   * @returns True if already withdrawn
-   */
   async isNoteSpent(note: DepositNote | Uint8Array): Promise<boolean> {
     const nullifier = note instanceof Uint8Array ? note : note.nullifier;
     return isNullifierSpent(this.connection, nullifier, this.programId);
   }
 
-  /**
-   * Serializes a deposit note to a portable string.
-   * @param note - Deposit note
-   * @returns Base64-encoded string
-   */
   serializeNote(note: DepositNote): string {
     return serializeDepositNote(note);
   }
 
-  /**
-   * Deserializes a deposit note from a string.
-   * @param encoded - Base64-encoded note
-   * @returns Deposit note
-   */
   deserializeNote(encoded: string): DepositNote {
     return deserializeDepositNote(encoded);
   }
 
-  /**
-   * Estimates the relayer fee for a withdrawal.
-   * @returns Estimated fee in lamports
-   */
   async estimateRelayerFee(): Promise<BN> {
     return estimateRelayerFee(this.connection);
   }
 
-  // ─── Stealth Address Operations ────────────────────────────────
-
-  /**
-   * Generates a stealth meta-address for the connected wallet.
-   * @returns Stealth meta-address
-   */
   generateStealthMetaAddress(): StealthMetaAddress {
     this.requireWallet();
     return generateStealthMetaAddress(this.wallet!);
   }
 
-  /**
-   * Generates a one-time stealth address for a recipient.
-   *
-   * @param recipientMetaAddress - Recipient's stealth meta-address
-   * @returns Stealth address with ephemeral data
-   */
   generateStealthAddress(
     recipientMetaAddress: StealthMetaAddress
   ): StealthAddress {
     return generateStealthAddress(recipientMetaAddress);
   }
 
-  /**
-   * Registers the wallet's stealth meta-address on-chain.
-   *
-   * @param label - Optional label
-   * @param options - Transaction options
-   * @returns Transaction signature
-   */
   async registerStealth(
     label: string = "",
     options?: TransactionOptions
@@ -481,12 +345,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Looks up a recipient's stealth meta-address from the registry.
-   *
-   * @param recipient - Recipient's public key
-   * @returns Stealth meta-address
-   */
   async lookupStealthAddress(
     recipient: PublicKey
   ): Promise<StealthMetaAddress> {
@@ -497,15 +355,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Publishes a stealth announcement after sending to a stealth address.
-   *
-   * @param ephemeralPubkey - Ephemeral public key
-   * @param stealthAddress - Stealth address
-   * @param viewTag - View tag
-   * @param options - Transaction options
-   * @returns Transaction signature
-   */
   async announceStealthPayment(
     ephemeralPubkey: Uint8Array,
     stealthAddress: PublicKey,
@@ -525,13 +374,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Scans for incoming stealth payments addressed to this wallet.
-   *
-   * @param fromSlot - Start scanning from this slot
-   * @param toSlot - End scanning at this slot
-   * @returns Array of stealth payments
-   */
   async scanStealthPayments(
     fromSlot?: number,
     toSlot?: number
@@ -553,12 +395,6 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Derives the spending keypair for a received stealth payment.
-   *
-   * @param ephemeralPubkey - Ephemeral public key from the payment
-   * @returns Keypair that can spend the funds at the stealth address
-   */
   deriveStealthSpendingKey(ephemeralPubkey: Uint8Array): Keypair {
     this.requireWallet();
 
@@ -572,31 +408,16 @@ export class KiriteClient {
     );
   }
 
-  /**
-   * Fetches a stealth registry entry.
-   *
-   * @param owner - Owner public key
-   * @returns Registry entry
-   */
   async getRegistryEntry(
     owner: PublicKey
   ): Promise<StealthRegistryEntry> {
     return fetchRegistryEntry(this.connection, owner, this.programId);
   }
 
-  /**
-   * Fetches all stealth registry entries.
-   * @returns Array of registry entries
-   */
   async getAllRegistryEntries(): Promise<StealthRegistryEntry[]> {
     return fetchAllRegistryEntries(this.connection, this.programId);
   }
 
-  // ─── Internal Helpers ──────────────────────────────────────────
-
-  /**
-   * Ensures a wallet is connected, throwing if not.
-   */
   private requireWallet(): void {
     if (!this.wallet) {
       throw new WalletNotConnectedError();

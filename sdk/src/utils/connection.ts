@@ -12,12 +12,6 @@ import {
 import { ConnectionError, AccountNotFoundError } from "../errors";
 import { RPC_ENDPOINTS, DEFAULT_CONFIRM_TIMEOUT } from "../constants";
 
-/**
- * Creates a Solana connection with health validation.
- * @param endpoint - RPC endpoint URL
- * @param commitment - Commitment level
- * @returns Configured Connection instance
- */
 export function createConnection(
   endpoint: string,
   commitment: Commitment = "confirmed"
@@ -28,11 +22,7 @@ export function createConnection(
   });
 }
 
-/**
- * Validates that an RPC connection is healthy by fetching the latest slot.
- * @param connection - Solana connection to validate
- * @throws ConnectionError if the connection is unhealthy
- */
+/** @throws ConnectionError if the endpoint is unreachable or returns invalid data */
 export async function validateConnection(connection: Connection): Promise<void> {
   try {
     const slot = await connection.getSlot();
@@ -45,13 +35,7 @@ export async function validateConnection(connection: Connection): Promise<void> 
   }
 }
 
-/**
- * Fetches an account and throws if it doesn't exist.
- * @param connection - Solana connection
- * @param address - Account address
- * @param accountType - Human-readable account type for error messages
- * @returns Account info
- */
+/** @throws AccountNotFoundError */
 export async function fetchAccountOrThrow(
   connection: Connection,
   address: PublicKey,
@@ -64,12 +48,7 @@ export async function fetchAccountOrThrow(
   return account;
 }
 
-/**
- * Fetches multiple accounts in a single RPC call.
- * @param connection - Solana connection
- * @param addresses - List of account addresses
- * @returns Array of account info (null for missing accounts)
- */
+/** Batched getMultipleAccountsInfo (100 per RPC call). */
 export async function fetchMultipleAccounts(
   connection: Connection,
   addresses: PublicKey[]
@@ -86,13 +65,6 @@ export async function fetchMultipleAccounts(
   return results;
 }
 
-/**
- * Fetches all program accounts matching the given filters.
- * @param connection - Solana connection
- * @param programId - Program ID to query
- * @param filters - Account filters (memcmp, dataSize)
- * @returns Array of account entries
- */
 export async function fetchProgramAccounts(
   connection: Connection,
   programId: PublicKey,
@@ -104,12 +76,6 @@ export async function fetchProgramAccounts(
   return accounts;
 }
 
-/**
- * Gets the token balance for an associated token account.
- * @param connection - Solana connection
- * @param tokenAccount - Token account address
- * @returns Token balance as a bigint
- */
 export async function getTokenBalance(
   connection: Connection,
   tokenAccount: PublicKey
@@ -118,12 +84,6 @@ export async function getTokenBalance(
   return BigInt(info.value.amount);
 }
 
-/**
- * Gets the SOL balance for an account.
- * @param connection - Solana connection
- * @param address - Account address
- * @returns Balance in lamports
- */
 export async function getSolBalance(
   connection: Connection,
   address: PublicKey
@@ -131,14 +91,6 @@ export async function getSolBalance(
   return connection.getBalance(address);
 }
 
-/**
- * Confirms a transaction with timeout.
- * @param connection - Solana connection
- * @param signature - Transaction signature to confirm
- * @param commitment - Commitment level
- * @param timeoutMs - Timeout in milliseconds
- * @returns Signature result
- */
 export async function confirmTransaction(
   connection: Connection,
   signature: TransactionSignature,
@@ -164,12 +116,6 @@ export async function confirmTransaction(
   return result;
 }
 
-/**
- * Gets the current slot number.
- * @param connection - Solana connection
- * @param commitment - Commitment level
- * @returns Current slot
- */
 export async function getCurrentSlot(
   connection: Connection,
   commitment: Commitment = "confirmed"
@@ -177,12 +123,6 @@ export async function getCurrentSlot(
   return connection.getSlot(commitment);
 }
 
-/**
- * Gets the current block time for a slot.
- * @param connection - Solana connection
- * @param slot - Slot number
- * @returns Unix timestamp or null
- */
 export async function getBlockTime(
   connection: Connection,
   slot: number
@@ -190,11 +130,7 @@ export async function getBlockTime(
   return connection.getBlockTime(slot);
 }
 
-/**
- * Resolves a network name to an RPC endpoint URL.
- * @param network - Network name or custom URL
- * @returns RPC endpoint URL
- */
+/** Maps "mainnet"/"devnet"/etc. to RPC URL, or passes through a URL. */
 export function resolveEndpoint(network: string): string {
   switch (network.toLowerCase()) {
     case "mainnet":
@@ -215,13 +151,6 @@ export function resolveEndpoint(network: string): string {
   }
 }
 
-/**
- * Fetches recent transaction signatures for an address.
- * @param connection - Solana connection
- * @param address - Account address
- * @param limit - Maximum number of signatures
- * @returns Array of confirmed signature info
- */
 export async function getRecentSignatures(
   connection: Connection,
   address: PublicKey,

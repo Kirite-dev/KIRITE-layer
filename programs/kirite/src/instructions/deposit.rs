@@ -10,12 +10,10 @@ use crate::utils::crypto::{
 };
 use crate::utils::validation::require_nonzero_bytes;
 
-/// Parameters for depositing into a shield pool.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct DepositParams {
     pub nullifier_secret: [u8; 32],
     pub blinding_factor: [u8; 32],
-    /// Pre-computed commitment hash (verified on-chain).
     pub commitment: [u8; 32],
 }
 
@@ -32,7 +30,6 @@ pub struct Deposit<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// Pool entry PDA seeded by pre-computed commitment hash.
     #[account(
         init,
         payer = depositor,
@@ -62,7 +59,6 @@ pub struct Deposit<'info> {
     pub system_program: Program<'info, System>,
 }
 
-/// Merkle tree insertion in a separate stack frame.
 #[inline(never)]
 fn do_merkle_insert(
     commitment: &[u8; 32],
@@ -72,7 +68,6 @@ fn do_merkle_insert(
     insert_leaf_light(commitment, leaf_index, filled_subtrees)
 }
 
-/// Token transfer in a separate stack frame.
 #[inline(never)]
 fn do_token_transfer<'info>(
     token_program: AccountInfo<'info>,
@@ -92,7 +87,6 @@ fn do_token_transfer<'info>(
     token::transfer(transfer_ctx, amount)
 }
 
-/// Validate and compute commitment in a separate stack frame.
 #[inline(never)]
 fn verify_commitment(
     nullifier_secret: &[u8; 32],
@@ -110,14 +104,12 @@ fn verify_commitment(
 }
 
 pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()> {
-    // Load pool for reads and validate
     let pool = ctx.accounts.shield_pool.load()?;
     let denomination = pool.denomination;
     let leaf_index = pool.next_leaf_index;
     let pool_mint = pool.mint;
     let pool_vault = pool.vault;
 
-    // Validate seed derivation
     let (expected_pool, _) = Pubkey::find_program_address(
         &[
             b"shield_pool",
@@ -131,10 +123,8 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
         KiriteError::InvalidAmountProof
     );
 
-    // Validate pool is not frozen
     require!(!pool.frozen(), KiriteError::PoolFrozen);
 
-    // Validate depositor token account mint and vault
     require!(
         ctx.accounts.depositor_token_account.mint == pool_mint,
         KiriteError::InvalidAmountProof
@@ -146,7 +136,6 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
 
     drop(pool);
 
-    // Validate inputs
     require_nonzero_bytes(&params.nullifier_secret, KiriteError::InvalidAmountProof)?;
     require_nonzero_bytes(&params.blinding_factor, KiriteError::InvalidAmountProof)?;
 
@@ -155,7 +144,6 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
         KiriteError::InsufficientEncryptedBalance
     );
 
-    // Verify client-provided commitment matches (separate stack frame)
     verify_commitment(
         &params.nullifier_secret,
         denomination,
@@ -164,7 +152,6 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
         &params.commitment,
     )?;
 
-    // Transfer tokens (separate stack frame)
     do_token_transfer(
         ctx.accounts.token_program.to_account_info(),
         ctx.accounts.depositor_token_account.to_account_info(),
@@ -173,7 +160,6 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
         denomination,
     )?;
 
-    // Insert leaf into Merkle tree (separate stack frame)
     let mut pool_mut = ctx.accounts.shield_pool.load_mut()?;
     let new_root = do_merkle_insert(
         &params.commitment,
@@ -181,7 +167,6 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
         &mut pool_mut.filled_subtrees,
     )?;
 
-    // Update pool state
     pool_mut.push_root(new_root);
     pool_mut.next_leaf_index = leaf_index
         .checked_add(1)
@@ -189,7 +174,6 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
     pool_mut.total_deposits = pool_mut.total_deposits.saturating_add(1);
     drop(pool_mut);
 
-    // Record deposit entry
     let entry = &mut ctx.accounts.pool_entry;
     entry.pool = ctx.accounts.shield_pool.key();
     entry.depositor = ctx.accounts.depositor.key();

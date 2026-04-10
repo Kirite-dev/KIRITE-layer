@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum KiriteError {
-    // === Authority & Access Control ===
     #[msg("Caller is not the protocol authority")]
     UnauthorizedAuthority,
 
@@ -21,7 +20,6 @@ pub enum KiriteError {
     #[msg("This token mint is not supported by the protocol")]
     UnsupportedMint,
 
-    // === Shield Pool ===
     #[msg("Shield pool has reached maximum capacity")]
     PoolCapacityExceeded,
 
@@ -55,7 +53,6 @@ pub enum KiriteError {
     #[msg("Pool denomination does not match the provided amount")]
     DenominationMismatch,
 
-    // === Confidential Transfer ===
     #[msg("Encrypted amount proof verification failed")]
     InvalidAmountProof,
 
@@ -74,7 +71,6 @@ pub enum KiriteError {
     #[msg("ElGamal public key is not on the curve")]
     InvalidElGamalKey,
 
-    // === Stealth Address ===
     #[msg("Stealth address has already been registered")]
     StealthAddressAlreadyRegistered,
 
@@ -93,7 +89,6 @@ pub enum KiriteError {
     #[msg("Spend key verification failed")]
     InvalidSpendKey,
 
-    // === Fees & Math ===
     #[msg("Fee calculation resulted in overflow")]
     FeeOverflow,
 
@@ -106,7 +101,6 @@ pub enum KiriteError {
     #[msg("Division by zero in calculation")]
     DivisionByZero,
 
-    // === Validation ===
     #[msg("Input data exceeds maximum allowed length")]
     InputTooLong,
 

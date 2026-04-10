@@ -26,12 +26,6 @@ import {
   sendAndConfirmTransaction,
 } from "../utils/transaction";
 
-/**
- * Derives the stealth registry PDA for an owner.
- * @param owner - Registry owner
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function deriveRegistryAddress(
   owner: PublicKey,
   programId: PublicKey = KIRITE_PROGRAM_ID
@@ -42,13 +36,6 @@ export function deriveRegistryAddress(
   );
 }
 
-/**
- * Derives the stealth announcement PDA.
- * @param ephemeralPubkey - Ephemeral public key
- * @param stealthAddress - Stealth address
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function deriveAnnouncementAddress(
   ephemeralPubkey: Uint8Array,
   stealthAddress: PublicKey,
@@ -65,19 +52,8 @@ export function deriveAnnouncementAddress(
 }
 
 /**
- * Parses a stealth registry account.
- *
- * Account layout:
- * [0..8]    - Discriminator
- * [8..40]   - Owner pubkey
- * [40..72]  - Spending key
- * [72..104] - Viewing key
- * [104..108] - Label length (u32 LE)
- * [108..108+len] - Label string (UTF-8)
- * [next..next+8]  - Created at timestamp (i64 LE)
- *
- * @param data - Raw account data
- * @returns Parsed registry entry
+ * Layout: [0..8] disc, [8..40] owner, [40..72] spending, [72..104] viewing,
+ * [104..108] label len, [108..] label, then i64 timestamp.
  */
 export function parseRegistryEntry(data: Buffer): StealthRegistryEntry {
   let offset = DISCRIMINATOR_SIZE;
@@ -109,15 +85,7 @@ export function parseRegistryEntry(data: Buffer): StealthRegistryEntry {
   };
 }
 
-/**
- * Fetches a stealth registry entry for an owner.
- *
- * @param connection - Solana connection
- * @param owner - Owner public key
- * @param programId - KIRITE program ID
- * @returns Registry entry
- * @throws RegistryNotFoundError if not found
- */
+/** @throws RegistryNotFoundError if not registered */
 export async function fetchRegistryEntry(
   connection: Connection,
   owner: PublicKey,
@@ -137,13 +105,6 @@ export async function fetchRegistryEntry(
   }
 }
 
-/**
- * Fetches all stealth registry entries.
- *
- * @param connection - Solana connection
- * @param programId - KIRITE program ID
- * @returns Array of registry entries
- */
 export async function fetchAllRegistryEntries(
   connection: Connection,
   programId: PublicKey = KIRITE_PROGRAM_ID
@@ -152,7 +113,7 @@ export async function fetchAllRegistryEntries(
     {
       memcmp: {
         offset: 0,
-        bytes: "4Rr", // Registry account discriminator prefix
+        bytes: "4Rr",
       },
     },
   ]);
@@ -170,15 +131,7 @@ export async function fetchAllRegistryEntries(
   return entries;
 }
 
-/**
- * Looks up a recipient's stealth meta-address from the on-chain registry.
- *
- * @param connection - Solana connection
- * @param recipient - Recipient's public key
- * @param programId - KIRITE program ID
- * @returns Stealth meta-address
- * @throws RegistryNotFoundError if not registered
- */
+/** @throws RegistryNotFoundError if not registered */
 export async function lookupStealthMetaAddress(
   connection: Connection,
   recipient: PublicKey,
@@ -188,15 +141,6 @@ export async function lookupStealthMetaAddress(
   return entry.metaAddress;
 }
 
-/**
- * Builds the instruction to register a stealth meta-address.
- *
- * @param owner - Owner public key
- * @param metaAddress - Stealth meta-address to register
- * @param label - Human-readable label (max 64 bytes)
- * @param programId - KIRITE program ID
- * @returns Transaction instruction
- */
 export function buildRegisterInstruction(
   owner: PublicKey,
   metaAddress: StealthMetaAddress,
@@ -205,7 +149,6 @@ export function buildRegisterInstruction(
 ): TransactionInstruction {
   const [registryAddr] = deriveRegistryAddress(owner, programId);
 
-  // Instruction discriminator: sha256("global:register_stealth")[0..8]
   const discriminator = Buffer.from([0x5c, 0x6d, 0x7e, 0x8f, 0x9a, 0xab, 0xbc, 0xcd]);
 
   const labelBytes = Buffer.from(label, "utf-8").slice(0, 64);
@@ -231,15 +174,6 @@ export function buildRegisterInstruction(
   });
 }
 
-/**
- * Builds the instruction to update a stealth meta-address.
- *
- * @param owner - Owner public key
- * @param newMetaAddress - New stealth meta-address
- * @param newLabel - New label (optional)
- * @param programId - KIRITE program ID
- * @returns Transaction instruction
- */
 export function buildUpdateRegistryInstruction(
   owner: PublicKey,
   newMetaAddress: StealthMetaAddress,
@@ -248,7 +182,6 @@ export function buildUpdateRegistryInstruction(
 ): TransactionInstruction {
   const [registryAddr] = deriveRegistryAddress(owner, programId);
 
-  // Instruction discriminator: sha256("global:update_stealth_registry")[0..8]
   const discriminator = Buffer.from([0x6e, 0x7f, 0x8a, 0x9b, 0xac, 0xbd, 0xce, 0xdf]);
 
   const labelBytes = newLabel
@@ -275,17 +208,7 @@ export function buildUpdateRegistryInstruction(
   });
 }
 
-/**
- * Builds the instruction to emit a stealth announcement.
- * This is called by the sender after sending funds to a stealth address.
- *
- * @param sender - Sender's public key
- * @param ephemeralPubkey - Ephemeral public key
- * @param stealthAddress - Stealth address that received funds
- * @param viewTag - View tag for efficient scanning
- * @param programId - KIRITE program ID
- * @returns Transaction instruction
- */
+/** Emits stealth announcement so the recipient can discover the payment. */
 export function buildAnnouncementInstruction(
   sender: PublicKey,
   ephemeralPubkey: Uint8Array,
@@ -299,7 +222,6 @@ export function buildAnnouncementInstruction(
     programId
   );
 
-  // Instruction discriminator: sha256("global:stealth_announce")[0..8]
   const discriminator = Buffer.from([0x7a, 0x8b, 0x9c, 0xad, 0xbe, 0xcf, 0xd0, 0xe1]);
 
   const data = Buffer.concat([
@@ -320,17 +242,6 @@ export function buildAnnouncementInstruction(
   });
 }
 
-/**
- * Registers a stealth meta-address on-chain.
- *
- * @param connection - Solana connection
- * @param wallet - Owner's keypair
- * @param metaAddress - Stealth meta-address to register
- * @param label - Optional label
- * @param options - Transaction options
- * @param programId - KIRITE program ID
- * @returns Transaction signature
- */
 export async function registerStealthMetaAddress(
   connection: Connection,
   wallet: Keypair,
@@ -356,18 +267,6 @@ export async function registerStealthMetaAddress(
   return sendAndConfirmTransaction(connection, tx, [wallet], options);
 }
 
-/**
- * Publishes a stealth announcement after sending to a stealth address.
- *
- * @param connection - Solana connection
- * @param wallet - Sender's keypair
- * @param ephemeralPubkey - Ephemeral public key
- * @param stealthAddress - Stealth address
- * @param viewTag - View tag
- * @param options - Transaction options
- * @param programId - KIRITE program ID
- * @returns Transaction signature
- */
 export async function publishStealthAnnouncement(
   connection: Connection,
   wallet: Keypair,

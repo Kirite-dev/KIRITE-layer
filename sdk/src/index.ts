@@ -1,7 +1,5 @@
-// ─── Main Client ────────────────────────────────────────────────
 export { KiriteClient } from "./client";
 
-// ─── Types ──────────────────────────────────────────────────────
 export type {
   EncryptedAmount,
   DecryptedTransfer,
@@ -40,7 +38,6 @@ export type {
   StealthAnnouncementEvent,
 } from "./types";
 
-// ─── Constants ──────────────────────────────────────────────────
 export {
   KIRITE_PROGRAM_ID,
   KIRITE_DEVNET_PROGRAM_ID,
@@ -59,7 +56,6 @@ export {
   MAX_MEMO_LENGTH,
 } from "./constants";
 
-// ─── Errors ─────────────────────────────────────────────────────
 export {
   KiriteError,
   WalletNotConnectedError,
@@ -84,7 +80,6 @@ export {
   isKiriteError,
 } from "./errors";
 
-// ─── Confidential Module ────────────────────────────────────────
 export {
   encryptAmount,
   decryptAmount,
@@ -115,7 +110,6 @@ export {
   getConfidentialBalance,
 } from "./confidential";
 
-// ─── Shield Pool Module ─────────────────────────────────────────
 export {
   derivePoolAddress,
   derivePoolTokenAddress,
@@ -146,7 +140,6 @@ export {
   estimateRelayerFee,
 } from "./shield-pool";
 
-// ─── Stealth Module ─────────────────────────────────────────────
 export {
   generateStealthMetaAddress,
   generateStealthAddress,
@@ -172,7 +165,6 @@ export {
   publishStealthAnnouncement,
 } from "./stealth";
 
-// ─── Utilities ──────────────────────────────────────────────────
 export {
   createConnection,
   validateConnection,

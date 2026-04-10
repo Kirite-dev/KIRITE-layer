@@ -11,20 +11,7 @@ import { checkViewTag, deriveStealthSpendingKey } from "./address";
 import { fetchProgramAccounts, getRecentSignatures } from "../utils/connection";
 import { hash256 } from "../utils/keypair";
 
-/**
- * Scans the blockchain for incoming stealth payments.
- *
- * The scanning process:
- * 1. Fetch stealth announcement events from the on-chain program
- * 2. For each announcement, check the view tag (fast filter)
- * 3. If the view tag matches, compute the full ECDH to verify
- * 4. Derive the stealth spending key for matching announcements
- *
- * @param connection - Solana connection
- * @param params - Scanning parameters (viewing key, spending key, slot range)
- * @param programId - KIRITE program ID
- * @returns Array of stealth payments addressed to us
- */
+/** Fetches announcements, filters by view tag, then full ECDH verify. */
 export async function scanStealthPayments(
   connection: Connection,
   params: ScanStealthParams,
@@ -32,7 +19,6 @@ export async function scanStealthPayments(
 ): Promise<StealthPayment[]> {
   const payments: StealthPayment[] = [];
 
-  // Fetch stealth announcement accounts
   const announcements = await fetchStealthAnnouncements(
     connection,
     params.fromSlot,
@@ -41,7 +27,6 @@ export async function scanStealthPayments(
   );
 
   for (const announcement of announcements) {
-    // Step 1: Fast view tag check
     const viewTagMatch = checkViewTag(
       announcement.ephemeralPubkey,
       announcement.viewTag,
@@ -49,20 +34,16 @@ export async function scanStealthPayments(
     );
 
     if (!viewTagMatch) {
-      continue; // Not for us, skip
+      continue;
     }
 
-    // Step 2: Full verification — derive the stealth address
     const stealthKeypair = deriveStealthSpendingKey(
       announcement.ephemeralPubkey,
       params.viewingKey,
       params.spendingKey
     );
 
-    // Step 3: Check if the derived address matches the announcement
     if (stealthKeypair.publicKey.equals(announcement.stealthAddress)) {
-      // This payment is for us
-      // Fetch the balance at the stealth address
       const balance = await getStealthAddressBalance(
         connection,
         announcement.stealthAddress
@@ -83,28 +64,17 @@ export async function scanStealthPayments(
   return payments;
 }
 
-/**
- * Fetches stealth announcement events from the chain.
- *
- * @param connection - Solana connection
- * @param fromSlot - Start slot (optional)
- * @param toSlot - End slot (optional)
- * @param programId - KIRITE program ID
- * @returns Array of parsed announcements
- */
 async function fetchStealthAnnouncements(
   connection: Connection,
   fromSlot?: number,
   toSlot?: number,
   programId: PublicKey = KIRITE_PROGRAM_ID
 ): Promise<StealthAnnouncementEvent[]> {
-  // Fetch announcement accounts from the program
   const accounts = await fetchProgramAccounts(connection, programId, [
     {
       memcmp: {
         offset: 0,
-        // Stealth announcement discriminator
-        bytes: "3Qq", // Base58 prefix for announcement accounts
+          bytes: "3Qq",
       },
     },
   ]);
@@ -115,7 +85,6 @@ async function fetchStealthAnnouncements(
     try {
       const parsed = parseAnnouncementAccount(account.data, pubkey);
 
-      // Filter by slot range
       if (fromSlot && parsed.slot < fromSlot) continue;
       if (toSlot && parsed.slot > toSlot) continue;
 
@@ -125,27 +94,14 @@ async function fetchStealthAnnouncements(
     }
   }
 
-  // Sort by slot ascending
   announcements.sort((a, b) => a.slot - b.slot);
 
   return announcements;
 }
 
 /**
- * Parses a stealth announcement account's data.
- *
- * Account layout:
- * [0..8]   - Discriminator
- * [8..40]  - Ephemeral public key
- * [40..72] - Stealth address
- * [72]     - View tag
- * [73..81] - Slot (u64 LE)
- * [81..89] - Timestamp (i64 LE)
- * [89..153] - Transaction signature (64 bytes)
- *
- * @param data - Raw account data
- * @param pubkey - Account address
- * @returns Parsed announcement event
+ * Layout: [0..8] disc, [8..40] ephemeral, [40..72] stealth addr,
+ * [72] view tag, [73..81] slot, [81..89] timestamp, [89..153] signature
  */
 function parseAnnouncementAccount(
   data: Buffer,
@@ -185,38 +141,27 @@ function parseAnnouncementAccount(
   };
 }
 
-/**
- * Gets the token balance at a stealth address.
- * Checks both SOL and SPL token balances.
- *
- * @param connection - Solana connection
- * @param address - Stealth address
- * @returns Balance info
- */
+/** Checks SOL then SPL token balances at a stealth address. */
 async function getStealthAddressBalance(
   connection: Connection,
   address: PublicKey
 ): Promise<{ amount: BN; mint: PublicKey }> {
-  // Check SOL balance first
   const solBalance = await connection.getBalance(address);
 
   if (solBalance > 0) {
     return {
       amount: new BN(solBalance),
-      mint: PublicKey.default, // Native SOL
+      mint: PublicKey.default,
     };
   }
 
-  // Check for SPL token accounts owned by this address
   const tokenAccounts = await connection.getTokenAccountsByOwner(address, {
     programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
   });
 
   if (tokenAccounts.value.length > 0) {
-    // Parse the first token account with a balance
     for (const { account } of tokenAccounts.value) {
       const data = account.data;
-      // SPL Token account layout: mint (32) + owner (32) + amount (8)
       const mint = new PublicKey(data.slice(0, 32));
       const amountBytes = data.slice(64, 72);
       const amount = new BN(amountBytes, "le");
@@ -233,20 +178,7 @@ async function getStealthAddressBalance(
   };
 }
 
-/**
- * Scans for stealth payments using transaction log parsing.
- * This is an alternative scanning method that uses transaction logs
- * instead of account queries, useful when announcement accounts
- * may have been cleaned up.
- *
- * @param connection - Solana connection
- * @param viewingKey - Viewing secret key
- * @param spendingKey - Spending secret key
- * @param referencePubkey - A reference pubkey to query signatures from
- * @param limit - Maximum number of transactions to scan
- * @param programId - KIRITE program ID
- * @returns Array of detected stealth payments
- */
+/** Alternative scan via tx log parsing, for when announcement accounts are pruned. */
 export async function scanStealthPaymentsFromLogs(
   connection: Connection,
   viewingKey: Uint8Array,
@@ -257,7 +189,6 @@ export async function scanStealthPaymentsFromLogs(
 ): Promise<StealthPayment[]> {
   const payments: StealthPayment[] = [];
 
-  // Fetch recent signatures
   const signatures = await getRecentSignatures(
     connection,
     referencePubkey,
@@ -272,7 +203,6 @@ export async function scanStealthPaymentsFromLogs(
 
       if (!tx || !tx.meta || !tx.meta.logMessages) continue;
 
-      // Look for stealth announcement log entries
       for (const log of tx.meta.logMessages) {
         const match = log.match(
           /Program log: StealthAnnouncement\{ephemeral:([a-f0-9]+),address:([a-zA-Z0-9]+),tag:(\d+)\}/
@@ -284,12 +214,10 @@ export async function scanStealthPaymentsFromLogs(
         const stealthAddress = new PublicKey(match[2]);
         const viewTag = parseInt(match[3], 10);
 
-        // Check view tag
         if (!checkViewTag(ephemeralPubkey, viewTag, viewingKey)) {
           continue;
         }
 
-        // Full verification
         const stealthKeypair = deriveStealthSpendingKey(
           ephemeralPubkey,
           viewingKey,
@@ -321,12 +249,6 @@ export async function scanStealthPaymentsFromLogs(
   return payments;
 }
 
-/**
- * Calculates the total unclaimed balance across all stealth payments.
- *
- * @param payments - Array of stealth payments
- * @returns Map of mint address to total balance
- */
 export function calculateStealthBalances(
   payments: StealthPayment[]
 ): Map<string, BN> {

@@ -11,10 +11,6 @@ use crate::utils::crypto::{
 };
 use crate::utils::validation::require_nonzero_bytes;
 
-// ============================================================================
-// Register Stealth Meta-Address
-// ============================================================================
-
 #[derive(Accounts)]
 pub struct RegisterStealthRegistry<'info> {
     #[account(
@@ -43,11 +39,10 @@ pub fn handle_register_stealth_registry(
     ctx: Context<RegisterStealthRegistry>,
     params: CreateStealthParams,
 ) -> Result<()> {
-    // Validate spend and view public keys
     validate_elgamal_pubkey(&params.spend_pubkey)?;
     validate_elgamal_pubkey(&params.view_pubkey)?;
 
-    // Ensure spend != view (they must be independent keys)
+    // spend and view must be independent keys
     require!(
         params.spend_pubkey != params.view_pubkey,
         KiriteError::StealthDerivationMismatch
@@ -83,10 +78,6 @@ pub fn handle_register_stealth_registry(
     Ok(())
 }
 
-// ============================================================================
-// Deactivate Stealth Registry
-// ============================================================================
-
 #[derive(Accounts)]
 pub struct DeactivateStealthRegistry<'info> {
     #[account(
@@ -111,10 +102,6 @@ pub fn handle_deactivate_stealth_registry(ctx: Context<DeactivateStealthRegistry
 
     Ok(())
 }
-
-// ============================================================================
-// Resolve (Derive) Stealth Address
-// ============================================================================
 
 #[derive(Accounts)]
 #[instruction(params: ResolveStealthParams)]
@@ -171,29 +158,25 @@ pub fn handle_resolve_stealth_address(
 ) -> Result<()> {
     let registry = &ctx.accounts.registry;
 
-    // Validate ephemeral key
     require_nonzero_bytes(&params.ephemeral_pubkey, KiriteError::InvalidEphemeralKey)?;
     require_nonzero_bytes(&params.ephemeral_secret, KiriteError::InvalidEphemeralKey)?;
     validate_ciphertext(&params.encrypted_amount)?;
 
-    // Verify that the provided ephemeral_pubkey matches the ephemeral_secret
     let computed_pubkey = compute_ephemeral_pubkey(&params.ephemeral_secret);
     require!(
         computed_pubkey == params.ephemeral_pubkey,
         KiriteError::InvalidEphemeralKey
     );
 
-    // Derive the stealth public key
     let stealth_pubkey_bytes = derive_stealth_pubkey(
         &registry.spend_pubkey,
         &registry.view_pubkey,
         &params.ephemeral_secret,
     );
 
-    // Convert the stealth pubkey bytes to a Solana Pubkey
     let stealth_solana_address = Pubkey::new_from_array(stealth_pubkey_bytes);
 
-    // Compute view tag for fast scanning
+    // View tag = first byte of H(ephemeral_secret || view_pubkey) for fast recipient scanning
     let mut view_tag_preimage = Vec::with_capacity(64);
     view_tag_preimage.extend_from_slice(&params.ephemeral_secret);
     view_tag_preimage.extend_from_slice(&registry.view_pubkey);
@@ -202,7 +185,6 @@ pub fn handle_resolve_stealth_address(
 
     let clock = Clock::get()?;
 
-    // Populate stealth address record
     let stealth = &mut ctx.accounts.stealth_address;
     stealth.registry = ctx.accounts.registry.key();
     stealth.address = stealth_solana_address;
@@ -214,7 +196,6 @@ pub fn handle_resolve_stealth_address(
     stealth.claimed_at = 0;
     stealth.bump = ctx.bumps.stealth_address;
 
-    // Populate ephemeral key record
     let eph_record = &mut ctx.accounts.ephemeral_key_record;
     eph_record.stealth_address = ctx.accounts.stealth_address.key();
     eph_record.registry = ctx.accounts.registry.key();
@@ -223,7 +204,6 @@ pub fn handle_resolve_stealth_address(
     eph_record.created_at = clock.unix_timestamp;
     eph_record.bump = ctx.bumps.ephemeral_key_record;
 
-    // Update registry stats
     let registry_mut = &mut ctx.accounts.registry;
     registry_mut.address_count = registry_mut.address_count.saturating_add(1);
     registry_mut.last_used_at = clock.unix_timestamp;
@@ -244,10 +224,6 @@ pub fn handle_resolve_stealth_address(
 
     Ok(())
 }
-
-// ============================================================================
-// Claim Stealth Address
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct ClaimStealthAddress<'info> {
@@ -270,9 +246,7 @@ pub struct ClaimStealthAddress<'info> {
     )]
     pub registry: Account<'info, StealthRegistry>,
 
-    /// The recipient who can prove ownership of the stealth address.
-    /// In practice they'd provide a signature proving they hold the
-    /// spend key + shared secret tweak.
+    /// Must prove ownership via spend key + shared secret tweak.
     pub recipient: Signer<'info>,
 }
 
@@ -280,31 +254,25 @@ pub fn handle_claim_stealth_address(
     ctx: Context<ClaimStealthAddress>,
     spend_proof: [u8; 64],
 ) -> Result<()> {
-    // Validate spend proof is non-trivial
     let all_zero = spend_proof.iter().all(|&b| b == 0);
     require!(!all_zero, KiriteError::InvalidSpendKey);
 
-    // Verify the recipient can derive the stealth address
-    // In production this would verify a Schnorr signature using the
-    // stealth private key (spend_secret + tweak). Here we verify that
-    // the proof references the correct stealth address.
+    // Production: Schnorr verify with stealth private key (spend_secret + tweak).
+    // Devnet: structural check binding proof to the stealth address.
     let proof_hash = solana_program::keccak::hash(&spend_proof).to_bytes();
     let stealth = &ctx.accounts.stealth_address;
 
-    // The first 8 bytes of the proof hash should match the first 8 bytes
-    // of the stealth address (binding the proof to this specific address).
     let addr_bytes = stealth.address.to_bytes();
     let proof_tag: [u8; 8] = proof_hash[..8].try_into().unwrap();
     let addr_tag: [u8; 8] = addr_bytes[..8].try_into().unwrap();
 
-    // We use XOR-distance: must be within threshold for a valid proof
+    // XOR-distance between proof tag and address tag
     let mut distance: u64 = 0;
     for i in 0..8 {
         distance |= (proof_tag[i] ^ addr_tag[i]) as u64;
     }
 
-    // In production, distance must be exactly 0 (perfect match).
-    // For testnet we allow non-zero but log a warning.
+    // Mainnet: require distance == 0. Testnet: warn only.
     if distance != 0 {
         msg!(
             "WARN: spend proof tag distance={} — full verifier required for mainnet",

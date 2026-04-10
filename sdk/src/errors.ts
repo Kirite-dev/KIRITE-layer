@@ -1,4 +1,3 @@
-/** Base error class for all KIRITE errors */
 export class KiriteError extends Error {
   public readonly code: number;
   public readonly context: Record<string, unknown>;
@@ -21,7 +20,6 @@ export class KiriteError extends Error {
   }
 }
 
-/** Error thrown when wallet is not configured */
 export class WalletNotConnectedError extends KiriteError {
   constructor() {
     super("Wallet not connected. Provide a keypair in client config.", 1000);
@@ -30,7 +28,6 @@ export class WalletNotConnectedError extends KiriteError {
   }
 }
 
-/** Error thrown when RPC connection fails */
 export class ConnectionError extends KiriteError {
   constructor(endpoint: string, cause?: string) {
     super(
@@ -43,7 +40,6 @@ export class ConnectionError extends KiriteError {
   }
 }
 
-/** Error thrown when a transaction fails */
 export class TransactionError extends KiriteError {
   public readonly signature?: string;
   public readonly logs?: string[];
@@ -57,7 +53,6 @@ export class TransactionError extends KiriteError {
   }
 }
 
-/** Error thrown when transaction confirmation times out */
 export class ConfirmationTimeoutError extends TransactionError {
   constructor(signature: string, timeoutMs: number) {
     super(
@@ -69,7 +64,6 @@ export class ConfirmationTimeoutError extends TransactionError {
   }
 }
 
-/** Error thrown when transaction simulation fails */
 export class SimulationError extends TransactionError {
   constructor(logs: string[]) {
     super("Transaction simulation failed", undefined, logs);
@@ -78,7 +72,6 @@ export class SimulationError extends TransactionError {
   }
 }
 
-/** Error thrown when encryption/decryption fails */
 export class EncryptionError extends KiriteError {
   constructor(operation: "encrypt" | "decrypt", reason: string) {
     super(`${operation} failed: ${reason}`, 3000, { operation });
@@ -87,7 +80,6 @@ export class EncryptionError extends KiriteError {
   }
 }
 
-/** Error thrown when proof generation fails */
 export class ProofError extends KiriteError {
   constructor(proofType: string, reason: string) {
     super(`Failed to generate ${proofType} proof: ${reason}`, 3001, { proofType });
@@ -96,7 +88,6 @@ export class ProofError extends KiriteError {
   }
 }
 
-/** Error thrown when proof verification fails */
 export class ProofVerificationError extends KiriteError {
   constructor(proofType: string) {
     super(`${proofType} proof verification failed`, 3002, { proofType });
@@ -105,7 +96,6 @@ export class ProofVerificationError extends KiriteError {
   }
 }
 
-/** Error thrown for invalid amounts */
 export class InvalidAmountError extends KiriteError {
   constructor(amount: string, reason: string) {
     super(`Invalid amount ${amount}: ${reason}`, 4000, { amount });
@@ -114,7 +104,6 @@ export class InvalidAmountError extends KiriteError {
   }
 }
 
-/** Error thrown when pool is not found */
 export class PoolNotFoundError extends KiriteError {
   constructor(poolId: string) {
     super(`Shield pool not found: ${poolId}`, 4001, { poolId });
@@ -123,7 +112,6 @@ export class PoolNotFoundError extends KiriteError {
   }
 }
 
-/** Error thrown when pool is paused */
 export class PoolPausedError extends KiriteError {
   constructor(poolId: string) {
     super(`Shield pool is paused: ${poolId}`, 4002, { poolId });
@@ -132,7 +120,6 @@ export class PoolPausedError extends KiriteError {
   }
 }
 
-/** Error thrown when denomination is not supported */
 export class InvalidDenominationError extends KiriteError {
   constructor(amount: string, supported: string[]) {
     super(
@@ -145,7 +132,6 @@ export class InvalidDenominationError extends KiriteError {
   }
 }
 
-/** Error thrown when a nullifier has been spent */
 export class NullifierSpentError extends KiriteError {
   constructor(nullifier: string) {
     super(`Nullifier already spent: ${nullifier}`, 4004, { nullifier });
@@ -154,7 +140,6 @@ export class NullifierSpentError extends KiriteError {
   }
 }
 
-/** Error thrown when the Merkle tree is full */
 export class TreeFullError extends KiriteError {
   constructor(poolId: string, capacity: number) {
     super(`Merkle tree full for pool ${poolId} (capacity: ${capacity})`, 4005, {
@@ -166,7 +151,6 @@ export class TreeFullError extends KiriteError {
   }
 }
 
-/** Error thrown for stealth address issues */
 export class StealthAddressError extends KiriteError {
   constructor(reason: string) {
     super(`Stealth address error: ${reason}`, 5000);
@@ -175,7 +159,6 @@ export class StealthAddressError extends KiriteError {
   }
 }
 
-/** Error thrown when registry entry is not found */
 export class RegistryNotFoundError extends KiriteError {
   constructor(owner: string) {
     super(`Stealth registry entry not found for: ${owner}`, 5001, { owner });
@@ -184,7 +167,6 @@ export class RegistryNotFoundError extends KiriteError {
   }
 }
 
-/** Error thrown when an account is not found on-chain */
 export class AccountNotFoundError extends KiriteError {
   constructor(address: string, accountType: string) {
     super(`${accountType} account not found at ${address}`, 6000, {
@@ -196,7 +178,6 @@ export class AccountNotFoundError extends KiriteError {
   }
 }
 
-/** Error thrown for insufficient balance */
 export class InsufficientBalanceError extends KiriteError {
   constructor(required: string, available: string) {
     super(`Insufficient balance: need ${required}, have ${available}`, 6001, {
@@ -208,7 +189,6 @@ export class InsufficientBalanceError extends KiriteError {
   }
 }
 
-/** Error code mapping from on-chain program errors */
 const PROGRAM_ERROR_MAP: Record<number, string> = {
   6000: "Invalid proof",
   6001: "Amount overflow",
@@ -229,11 +209,7 @@ const PROGRAM_ERROR_MAP: Record<number, string> = {
   6016: "Invalid equality proof",
 };
 
-/**
- * Parses an on-chain error from transaction logs into a typed KiriteError.
- * @param logs - Transaction log messages
- * @returns Parsed KiriteError or generic TransactionError
- */
+/** Maps on-chain program error logs to typed KiriteError instances */
 export function parseTransactionError(logs: string[]): KiriteError {
   for (const log of logs) {
     const anchorMatch = log.match(/Error Code: (\w+)\. Error Number: (\d+)\. Error Message: (.+)/);
@@ -269,11 +245,6 @@ export function parseTransactionError(logs: string[]): KiriteError {
   return new TransactionError("Transaction failed with unknown error", undefined, logs);
 }
 
-/**
- * Checks if an error is a specific KIRITE error type.
- * @param error - Error to check
- * @param errorClass - Error class to check against
- */
 export function isKiriteError<T extends KiriteError>(
   error: unknown,
   errorClass: new (...args: any[]) => T

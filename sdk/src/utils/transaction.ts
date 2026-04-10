@@ -21,15 +21,6 @@ import {
 import { DEFAULT_RETRY_CONFIG, DEFAULT_CONFIRM_TIMEOUT } from "../constants";
 import { RetryConfig, TransactionOptions } from "../types";
 
-/**
- * Builds a transaction with compute budget and instructions.
- * @param connection - Solana connection
- * @param payer - Transaction fee payer
- * @param instructions - Transaction instructions
- * @param computeUnits - Compute unit limit (optional)
- * @param priorityFee - Priority fee in micro-lamports per compute unit (optional)
- * @returns Built Transaction ready for signing
- */
 export async function buildTransaction(
   connection: Connection,
   payer: PublicKey,
@@ -68,15 +59,6 @@ export async function buildTransaction(
   return tx;
 }
 
-/**
- * Builds a versioned transaction (v0) with address lookup tables support.
- * @param connection - Solana connection
- * @param payer - Fee payer
- * @param instructions - Instructions to include
- * @param computeUnits - Compute unit limit
- * @param priorityFee - Priority fee in micro-lamports
- * @returns VersionedTransaction
- */
 export async function buildVersionedTransaction(
   connection: Connection,
   payer: PublicKey,
@@ -111,15 +93,7 @@ export async function buildVersionedTransaction(
   return new VersionedTransaction(messageV0);
 }
 
-/**
- * Signs and sends a transaction with retry logic.
- * @param connection - Solana connection
- * @param transaction - Transaction to send
- * @param signers - Transaction signers
- * @param options - Transaction options
- * @param retryConfig - Retry configuration
- * @returns Transaction signature
- */
+/** Signs, sends, and retries with exponential backoff. */
 export async function signAndSendTransaction(
   connection: Connection,
   transaction: Transaction,
@@ -137,7 +111,7 @@ export async function signAndSendTransaction(
       const sendOptions: SendOptions = {
         skipPreflight: options.skipPreflight ?? false,
         preflightCommitment: options.preflightCommitment ?? "confirmed",
-        maxRetries: 0, // We handle retries ourselves
+        maxRetries: 0,
       };
 
       const signature = await connection.sendRawTransaction(
@@ -158,7 +132,6 @@ export async function signAndSendTransaction(
         const delay = calculateBackoff(attempt, retryConfig);
         await sleep(delay);
 
-        // Refresh blockhash for retry
         const { blockhash, lastValidBlockHeight } =
           await connection.getLatestBlockhash("confirmed");
         transaction.recentBlockhash = blockhash;
@@ -171,16 +144,7 @@ export async function signAndSendTransaction(
   throw wrapSendError(lastError!);
 }
 
-/**
- * Sends a transaction and waits for confirmation.
- * @param connection - Solana connection
- * @param transaction - Transaction to send
- * @param signers - Signers
- * @param options - Transaction options
- * @param retryConfig - Retry configuration
- * @param confirmTimeout - Confirmation timeout in ms
- * @returns Confirmed transaction signature
- */
+/** Signs, sends, and blocks until confirmed (or timeout). */
 export async function sendAndConfirmTransaction(
   connection: Connection,
   transaction: Transaction,
@@ -241,13 +205,7 @@ export async function sendAndConfirmTransaction(
   }
 }
 
-/**
- * Simulates a transaction and returns the logs.
- * @param connection - Solana connection
- * @param transaction - Transaction to simulate
- * @returns Simulation logs
- * @throws SimulationError if simulation fails
- */
+/** @throws SimulationError if simulation fails */
 export async function simulateTransaction(
   connection: Connection,
   transaction: Transaction
@@ -261,12 +219,6 @@ export async function simulateTransaction(
   return result.value.logs || [];
 }
 
-/**
- * Gets transaction logs for a confirmed transaction.
- * @param connection - Solana connection
- * @param signature - Transaction signature
- * @returns Log messages
- */
 export async function getTransactionLogs(
   connection: Connection,
   signature: TransactionSignature
@@ -281,24 +233,15 @@ export async function getTransactionLogs(
   }
 }
 
-/**
- * Calculates exponential backoff delay with jitter.
- * @param attempt - Current attempt number (1-based)
- * @param config - Retry configuration
- * @returns Delay in milliseconds
- */
+/** Exponential backoff with random jitter (up to 50% of delay). */
 function calculateBackoff(attempt: number, config: RetryConfig): number {
   const exponentialDelay =
     config.baseDelay * Math.pow(config.backoffMultiplier, attempt - 1);
   const cappedDelay = Math.min(exponentialDelay, config.maxDelay);
-  // Add jitter: random value between 0 and 50% of the delay
   const jitter = Math.random() * cappedDelay * 0.5;
   return Math.floor(cappedDelay + jitter);
 }
 
-/**
- * Checks if an error is non-retryable.
- */
 function isNonRetryableError(err: Error): boolean {
   const msg = err.message.toLowerCase();
   const nonRetryable = [
@@ -315,9 +258,6 @@ function isNonRetryableError(err: Error): boolean {
   return nonRetryable.some((pattern) => msg.includes(pattern));
 }
 
-/**
- * Wraps a raw send error into a TransactionError.
- */
 function wrapSendError(err: Error): TransactionError {
   if (err instanceof TransactionError) {
     return err;
@@ -331,19 +271,10 @@ function wrapSendError(err: Error): TransactionError {
   return new TransactionError(err.message, undefined, logs);
 }
 
-/**
- * Sleeps for the specified duration.
- */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Creates a memo instruction.
- * @param memo - Memo text
- * @param signer - Signer public key
- * @returns Transaction instruction
- */
 export function createMemoInstruction(
   memo: string,
   signer: PublicKey
@@ -359,13 +290,6 @@ export function createMemoInstruction(
   });
 }
 
-/**
- * Estimates the transaction fee for the given instructions.
- * @param connection - Solana connection
- * @param payer - Fee payer
- * @param instructions - Instructions
- * @returns Estimated fee in lamports
- */
 export async function estimateTransactionFee(
   connection: Connection,
   payer: PublicKey,

@@ -9,9 +9,6 @@ use crate::utils::validation::{
     validate_denomination, validate_fee_bps, validate_timelock_duration,
 };
 
-// ============================================================================
-// Initialize Protocol
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct InitializeProtocol<'info> {
@@ -36,8 +33,7 @@ pub struct InitializeProtocol<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    /// The treasury account that will receive protocol fees.
-    /// CHECK: Validated as a wallet — no data layout requirements.
+    /// CHECK: Validated as wallet only.
     pub treasury: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
@@ -91,9 +87,6 @@ pub fn handle_initialize_protocol(
     Ok(())
 }
 
-// ============================================================================
-// Initialize Shield Pool
-// ============================================================================
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -128,12 +121,10 @@ pub struct InitializeShieldPool<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// The token vault owned by the pool's vault authority PDA.
-    /// CHECK: Initialized via CPI in a real deployment; here we validate it's a token account.
+    /// CHECK: Token vault; validated via CPI in deployment.
     #[account(mut)]
     pub vault: UncheckedAccount<'info>,
 
-    /// The token mint for this pool.
     pub mint: Account<'info, anchor_spl::token::Mint>,
 
     #[account(mut)]
@@ -159,12 +150,10 @@ pub fn handle_initialize_shield_pool(
     pool.protocol_config = ctx.accounts.protocol_config.key();
     pool.vault = ctx.accounts.vault.key();
 
-    // Initialise Merkle tree with empty root
     pool.current_root = zero_hashes[crate::utils::crypto::MERKLE_TREE_HEIGHT];
     pool.historical_roots = [[0u8; 32]; crate::state::shield_pool::MAX_HISTORICAL_ROOTS];
     pool.root_history_index = 0;
 
-    // Copy zero hashes into filled_subtrees
     for i in 0..crate::utils::crypto::MERKLE_TREE_HEIGHT {
         pool.filled_subtrees[i] = zero_hashes[i];
     }
@@ -179,14 +168,12 @@ pub fn handle_initialize_shield_pool(
     pool.bump = ctx.bumps.shield_pool;
     pool.vault_authority_bump = 0; // set during vault init
 
-    // Initialise nullifier set
     let nullifier = &mut ctx.accounts.nullifier_set;
     nullifier.pool = ctx.accounts.shield_pool.key();
     nullifier.count = 0;
     nullifier.bump = ctx.bumps.nullifier_set;
     nullifier.bitfield = vec![0u8; NULLIFIER_BITFIELD_BYTES];
 
-    // Update protocol stats
     let protocol = &mut ctx.accounts.protocol_config;
     protocol.total_pools = protocol.total_pools.saturating_add(1);
 
@@ -201,9 +188,6 @@ pub fn handle_initialize_shield_pool(
     Ok(())
 }
 
-// ============================================================================
-// Pause / Resume Protocol
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct PauseProtocol<'info> {

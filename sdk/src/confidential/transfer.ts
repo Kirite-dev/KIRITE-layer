@@ -37,13 +37,6 @@ import {
 import { deriveElGamalKeypair } from "../utils/keypair";
 import { fetchAccountOrThrow } from "../utils/connection";
 
-/**
- * Derives the confidential account PDA for a given owner and mint.
- * @param owner - Account owner
- * @param mint - Token mint
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function deriveConfidentialAccountAddress(
   owner: PublicKey,
   mint: PublicKey,
@@ -55,12 +48,6 @@ export function deriveConfidentialAccountAddress(
   );
 }
 
-/**
- * Derives the encrypted balance PDA.
- * @param confidentialAccount - Confidential account address
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function deriveEncryptedBalanceAddress(
   confidentialAccount: PublicKey,
   programId: PublicKey = KIRITE_PROGRAM_ID
@@ -71,15 +58,6 @@ export function deriveEncryptedBalanceAddress(
   );
 }
 
-/**
- * Builds the instruction for initializing a confidential token account.
- *
- * @param owner - Account owner
- * @param mint - Token mint
- * @param elGamalPubkey - ElGamal public key for encryption
- * @param programId - KIRITE program ID
- * @returns Transaction instruction
- */
 export function buildInitConfidentialAccountInstruction(
   owner: PublicKey,
   mint: PublicKey,
@@ -96,7 +74,6 @@ export function buildInitConfidentialAccountInstruction(
     programId
   );
 
-  // Instruction discriminator: sha256("global:init_confidential_account")[0..8]
   const discriminator = Buffer.from([0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x7a, 0x8b]);
 
   const data = Buffer.concat([
@@ -117,16 +94,6 @@ export function buildInitConfidentialAccountInstruction(
   });
 }
 
-/**
- * Builds the instruction for a confidential transfer.
- *
- * @param sender - Sender's public key
- * @param params - Transfer parameters
- * @param encryptedAmount - Encrypted transfer amount
- * @param proof - Zero-knowledge proof
- * @param programId - KIRITE program ID
- * @returns Transaction instruction
- */
 export function buildConfidentialTransferInstruction(
   sender: PublicKey,
   params: ConfidentialTransferParams,
@@ -153,13 +120,11 @@ export function buildConfidentialTransferInstruction(
     programId
   );
 
-  // Instruction discriminator: sha256("global:confidential_transfer")[0..8]
   const discriminator = Buffer.from([0x2c, 0x3d, 0x4e, 0x5f, 0x6a, 0x7b, 0x8c, 0x9d]);
 
   const serializedAmount = serializeEncryptedAmount(encryptedAmount);
   const serializedProof = serializeTransferProof(proof);
 
-  // Encode amount length (4 bytes LE) + amount + proof length (4 bytes LE) + proof
   const amountLenBuf = Buffer.alloc(4);
   amountLenBuf.writeUInt32LE(serializedAmount.length, 0);
   const proofLenBuf = Buffer.alloc(4);
@@ -188,22 +153,8 @@ export function buildConfidentialTransferInstruction(
 }
 
 /**
- * Executes a confidential transfer end-to-end.
- *
- * This function:
- * 1. Derives the sender's ElGamal keypair
- * 2. Fetches the sender's current encrypted balance
- * 3. Decrypts the balance to verify sufficiency
- * 4. Encrypts the transfer amount for the recipient
- * 5. Generates zero-knowledge proofs
- * 6. Builds and sends the transaction
- *
- * @param connection - Solana connection
- * @param wallet - Sender's keypair
- * @param params - Transfer parameters
- * @param options - Transaction options
- * @param programId - KIRITE program ID
- * @returns Transfer result with signature and proof data
+ * End-to-end confidential transfer: decrypt balance, encrypt amount,
+ * generate ZK proofs, build + send tx.
  */
 export async function executeConfidentialTransfer(
   connection: Connection,
@@ -212,7 +163,6 @@ export async function executeConfidentialTransfer(
   options: TransactionOptions = {},
   programId: PublicKey = KIRITE_PROGRAM_ID
 ): Promise<ConfidentialTransferResult> {
-  // Validate amount
   if (params.amount.isNeg() || params.amount.isZero()) {
     throw new InvalidAmountError(
       params.amount.toString(),
@@ -220,10 +170,7 @@ export async function executeConfidentialTransfer(
     );
   }
 
-  // Derive ElGamal keypair from wallet
   const elGamalKeypair = deriveElGamalKeypair(wallet);
-
-  // Fetch and decrypt current balance
   const [senderConfAccount] = deriveConfidentialAccountAddress(
     wallet.publicKey,
     params.mint,
@@ -242,8 +189,7 @@ export async function executeConfidentialTransfer(
       "EncryptedBalance"
     );
 
-    // Parse encrypted balance from account data (skip 8-byte discriminator)
-    const encBalanceData = balanceAccount.data.slice(8);
+    const encBalanceData = balanceAccount.data.slice(8); // skip discriminator
     const encBalance: EncryptedAmount = {
       ephemeralKey: encBalanceData.slice(0, 32),
       ciphertext: encBalanceData.slice(32, 64),
@@ -252,11 +198,9 @@ export async function executeConfidentialTransfer(
 
     senderBalance = decryptAmount(encBalance, elGamalKeypair.secretKey);
   } catch (err) {
-    // If account doesn't exist, balance is zero
     senderBalance = new BN(0);
   }
 
-  // Check sufficient balance
   if (senderBalance.lt(params.amount)) {
     throw new InsufficientBalanceError(
       params.amount.toString(),
@@ -264,13 +208,11 @@ export async function executeConfidentialTransfer(
     );
   }
 
-  // Encrypt the transfer amount for the recipient
   const encryptedAmount = encryptAmount(
     params.amount,
     params.recipientElGamalPubkey
   );
 
-  // Generate transfer proof
   const proof = generateTransferProof(
     params.amount,
     senderBalance,
@@ -279,7 +221,6 @@ export async function executeConfidentialTransfer(
     encryptedAmount
   );
 
-  // Build transfer instruction
   const transferIx = buildConfidentialTransferInstruction(
     wallet.publicKey,
     params,
@@ -288,7 +229,6 @@ export async function executeConfidentialTransfer(
     programId
   );
 
-  // Optionally add memo
   const instructions: TransactionInstruction[] = [transferIx];
   if (params.memo) {
     const memoText =
@@ -298,7 +238,6 @@ export async function executeConfidentialTransfer(
     instructions.push(createMemoInstruction(memoText, wallet.publicKey));
   }
 
-  // Build and send transaction
   const tx = await buildTransaction(
     connection,
     wallet.publicKey,
@@ -323,16 +262,7 @@ export async function executeConfidentialTransfer(
   };
 }
 
-/**
- * Decrypts all incoming confidential transfers for a given account.
- *
- * @param connection - Solana connection
- * @param wallet - Account owner keypair
- * @param mint - Token mint to query
- * @param fromSlot - Start scanning from this slot (optional)
- * @param programId - KIRITE program ID
- * @returns Array of decrypted transfers
- */
+/** Scans and decrypts incoming confidential transfers for the given wallet. */
 export async function decryptIncomingTransfers(
   connection: Connection,
   wallet: Keypair,
@@ -347,7 +277,6 @@ export async function decryptIncomingTransfers(
     programId
   );
 
-  // Fetch recent transaction signatures for the confidential account
   const signatures = await connection.getSignaturesForAddress(confAccount, {
     limit: 100,
   });
@@ -364,7 +293,6 @@ export async function decryptIncomingTransfers(
 
       if (!tx || !tx.meta) continue;
 
-      // Parse the instruction data to find confidential transfer instructions
       for (const innerIx of tx.transaction.message.instructions) {
         const programIdIndex = innerIx.programIdIndex;
         const programKey =
@@ -372,12 +300,11 @@ export async function decryptIncomingTransfers(
 
         if (!programKey.equals(programId)) continue;
 
-        // Try to extract and decrypt the transfer amount
         const ixData = Buffer.from(
           (innerIx as any).data || [],
           "base64"
         );
-        if (ixData.length < 108) continue; // Minimum: 8 disc + 4 len + 96 amount
+        if (ixData.length < 108) continue;
 
         const discriminator = ixData.slice(0, 8);
         const expectedDisc = Buffer.from([
@@ -398,7 +325,6 @@ export async function decryptIncomingTransfers(
         try {
           const amount = decryptAmount(encAmount, elGamalKeypair.secretKey);
 
-          // Extract sender from account keys
           const senderKey = tx.transaction.message.accountKeys[0];
 
           transfers.push({
@@ -410,7 +336,6 @@ export async function decryptIncomingTransfers(
             slot: sigInfo.slot,
           });
         } catch {
-          // Decryption failed — this transfer is not for us
           continue;
         }
       }
@@ -422,15 +347,6 @@ export async function decryptIncomingTransfers(
   return transfers;
 }
 
-/**
- * Fetches the decrypted balance of a confidential token account.
- *
- * @param connection - Solana connection
- * @param wallet - Account owner
- * @param mint - Token mint
- * @param programId - Program ID
- * @returns Decrypted balance
- */
 export async function getConfidentialBalance(
   connection: Connection,
   wallet: Keypair,

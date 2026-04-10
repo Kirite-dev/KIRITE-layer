@@ -5,7 +5,6 @@ use crate::utils::crypto::MERKLE_TREE_HEIGHT;
 pub const MAX_HISTORICAL_ROOTS: usize = 3;
 pub const NULLIFIER_BITFIELD_BYTES: usize = 1_024;
 
-/// Shield pool — zero_copy to avoid stack overflow on deserialization.
 #[account(zero_copy)]
 #[repr(C)]
 pub struct ShieldPool {
@@ -56,7 +55,6 @@ impl ShieldPool {
     }
 }
 
-/// Deposit entry — regular account (small enough for stack).
 #[account]
 pub struct PoolEntry {
     pub pool: Pubkey,
@@ -72,7 +70,6 @@ impl PoolEntry {
     pub const SPACE: usize = 8 + 32 + 32 + 32 + 4 + 8 + 1 + 1;
 }
 
-/// Nullifier set — regular account.
 #[account]
 pub struct NullifierSet {
     pub pool: Pubkey,
@@ -108,7 +105,6 @@ impl NullifierSet {
     }
 }
 
-/// Pool configuration parameters for pool creation.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct PoolConfig {
     pub denomination: u64,

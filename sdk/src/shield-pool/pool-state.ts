@@ -22,13 +22,6 @@ import {
 import { fetchAccountOrThrow, fetchProgramAccounts } from "../utils/connection";
 import { hash256 } from "../utils/keypair";
 
-/**
- * Derives the shield pool PDA address.
- * @param mint - Token mint
- * @param poolIndex - Pool index (for multiple pools per mint)
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function derivePoolAddress(
   mint: PublicKey,
   poolIndex: number = 0,
@@ -42,12 +35,6 @@ export function derivePoolAddress(
   );
 }
 
-/**
- * Derives the pool token account PDA.
- * @param poolAddress - Pool state address
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function derivePoolTokenAddress(
   poolAddress: PublicKey,
   programId: PublicKey = KIRITE_PROGRAM_ID
@@ -58,12 +45,6 @@ export function derivePoolTokenAddress(
   );
 }
 
-/**
- * Derives the pool authority PDA.
- * @param poolAddress - Pool state address
- * @param programId - Program ID
- * @returns PDA and bump
- */
 export function derivePoolAuthorityAddress(
   poolAddress: PublicKey,
   programId: PublicKey = KIRITE_PROGRAM_ID
@@ -74,12 +55,7 @@ export function derivePoolAuthorityAddress(
   );
 }
 
-/**
- * Derives the nullifier PDA for checking double-spend.
- * @param nullifier - Nullifier hash
- * @param programId - Program ID
- * @returns PDA and bump
- */
+/** Nullifier PDA -- existence means the deposit has been withdrawn. */
 export function deriveNullifierAddress(
   nullifier: Uint8Array,
   programId: PublicKey = KIRITE_PROGRAM_ID
@@ -90,12 +66,6 @@ export function deriveNullifierAddress(
   );
 }
 
-/**
- * Parses on-chain pool state account data into a ShieldPoolState object.
- * @param data - Raw account data
- * @param poolId - Pool address
- * @returns Parsed pool state
- */
 export function parsePoolState(
   data: Buffer,
   poolId: PublicKey
@@ -162,13 +132,6 @@ export function parsePoolState(
   };
 }
 
-/**
- * Fetches and parses the on-chain state of a shield pool.
- * @param connection - Solana connection
- * @param poolId - Pool address
- * @param programId - Program ID
- * @returns Parsed pool state
- */
 export async function fetchPoolState(
   connection: Connection,
   poolId: PublicKey,
@@ -183,13 +146,6 @@ export async function fetchPoolState(
   return parsePoolState(account.data, poolId);
 }
 
-/**
- * Fetches all shield pools for a given token mint.
- * @param connection - Solana connection
- * @param mint - Token mint to filter by
- * @param programId - Program ID
- * @returns Array of pool states
- */
 export async function fetchPoolsByMint(
   connection: Connection,
   mint: PublicKey,
@@ -209,17 +165,10 @@ export async function fetchPoolsByMint(
   );
 }
 
-/**
- * Fetches all shield pools in the protocol.
- * @param connection - Solana connection
- * @param programId - Program ID
- * @returns Array of pool states
- */
 export async function fetchAllPools(
   connection: Connection,
   programId: PublicKey = KIRITE_PROGRAM_ID
 ): Promise<ShieldPoolState[]> {
-  // Filter by the pool state discriminator
   const accounts = await fetchProgramAccounts(connection, programId, [
     {
       memcmp: {
@@ -234,20 +183,13 @@ export async function fetchAllPools(
     try {
       pools.push(parsePoolState(account.data, pubkey));
     } catch {
-      // Skip malformed accounts
     }
   }
 
   return pools;
 }
 
-/**
- * Checks if a nullifier has been spent.
- * @param connection - Solana connection
- * @param nullifier - Nullifier to check
- * @param programId - Program ID
- * @returns True if the nullifier has been used
- */
+/** Returns true if the nullifier PDA account exists (already withdrawn). */
 export async function isNullifierSpent(
   connection: Connection,
   nullifier: Uint8Array,
@@ -263,25 +205,17 @@ export async function isNullifierSpent(
   }
 }
 
-/**
- * Computes the Merkle root from a set of leaves.
- * @param leaves - Array of leaf hashes
- * @param depth - Tree depth
- * @returns Merkle root hash
- */
 export function computeMerkleRoot(
   leaves: Uint8Array[],
   depth: number = DEFAULT_TREE_DEPTH
 ): Uint8Array {
   const capacity = 2 ** depth;
 
-  // Pad with zero values
   const paddedLeaves = [...leaves];
   while (paddedLeaves.length < capacity) {
     paddedLeaves.push(ZERO_VALUE);
   }
 
-  // Build the tree bottom-up
   let currentLevel = paddedLeaves;
   for (let level = 0; level < depth; level++) {
     const nextLevel: Uint8Array[] = [];
@@ -297,13 +231,6 @@ export function computeMerkleRoot(
   return currentLevel[0];
 }
 
-/**
- * Computes a Merkle path (proof of inclusion) for a leaf at a given index.
- * @param leaves - All leaves in the tree
- * @param leafIndex - Index of the leaf to prove
- * @param depth - Tree depth
- * @returns Merkle path with siblings and path indices
- */
 export function computeMerklePath(
   leaves: Uint8Array[],
   leafIndex: number,
@@ -326,7 +253,6 @@ export function computeMerklePath(
     pathIndices.push(currentIndex % 2);
     siblings.push(currentLevel[siblingIndex] || ZERO_VALUE);
 
-    // Move to the next level
     const nextLevel: Uint8Array[] = [];
     for (let i = 0; i < currentLevel.length; i += 2) {
       const left = currentLevel[i];
@@ -340,13 +266,6 @@ export function computeMerklePath(
   return { siblings, pathIndices };
 }
 
-/**
- * Verifies a Merkle path against a root.
- * @param root - Expected root hash
- * @param leaf - Leaf hash
- * @param path - Merkle path
- * @returns True if the path is valid
- */
 export function verifyMerklePath(
   root: Uint8Array,
   leaf: Uint8Array,
@@ -362,7 +281,6 @@ export function verifyMerklePath(
     }
   }
 
-  // Compare with root
   if (currentHash.length !== root.length) return false;
   let equal = true;
   for (let j = 0; j < currentHash.length; j++) {
@@ -374,12 +292,6 @@ export function verifyMerklePath(
   return equal;
 }
 
-/**
- * Hashes two sibling nodes together to produce a parent node.
- * @param left - Left child hash
- * @param right - Right child hash
- * @returns Parent hash
- */
 export function hashPair(left: Uint8Array, right: Uint8Array): Uint8Array {
   const input = Buffer.concat([
     Buffer.from("kirite-merkle-v1"),
@@ -389,11 +301,6 @@ export function hashPair(left: Uint8Array, right: Uint8Array): Uint8Array {
   return hash256(input);
 }
 
-/**
- * Computes the leaf hash for a deposit commitment.
- * @param commitment - Deposit commitment
- * @returns Leaf hash
- */
 export function computeLeafHash(commitment: Uint8Array): Uint8Array {
   const input = Buffer.concat([
     Buffer.from("kirite-leaf-v1"),
@@ -402,12 +309,7 @@ export function computeLeafHash(commitment: Uint8Array): Uint8Array {
   return hash256(input);
 }
 
-/**
- * Gets the zero hashes for each level of the tree.
- * Used for efficient tree construction.
- * @param depth - Tree depth
- * @returns Array of zero hashes, one per level
- */
+/** Precomputed zero hashes per level, for efficient sparse tree construction. */
 export function getZeroHashes(depth: number): Uint8Array[] {
   const zeroHashes: Uint8Array[] = [ZERO_VALUE];
 

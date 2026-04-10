@@ -11,26 +11,14 @@ use crate::utils::crypto::{
 use crate::utils::math::{calculate_net_amount, split_fee};
 use crate::utils::validation::{is_timelock_expired, require_nonzero_bytes};
 
-/// Parameters for withdrawing from a shield pool.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct WithdrawParams {
-    /// The nullifier secret (reveals the deposit without linking to depositor).
     pub nullifier_secret: [u8; 32],
-
-    /// Blinding factor used in the original commitment.
     pub blinding_factor: [u8; 32],
-
-    /// Leaf index of the deposit in the Merkle tree.
     pub leaf_index: u32,
-
-    /// Merkle proof — path from leaf to root (20 sibling hashes).
     pub merkle_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
-
-    /// The Merkle root the proof was computed against.
-    /// Must be a known root (current or recent historical).
+    /// Must match a known root (current or recent historical).
     pub proof_root: [u8; 32],
-
-    /// Range proof that the withdrawal amount is valid.
     pub range_proof: [u8; 128],
 }
 
@@ -54,18 +42,15 @@ pub struct Withdraw<'info> {
     )]
     pub nullifier_set: Account<'info, NullifierSet>,
 
-    /// The deposit entry for verification.
     #[account(
         mut,
         constraint = !pool_entry.is_withdrawn @ KiriteError::DepositAlreadyWithdrawn,
     )]
     pub pool_entry: Account<'info, PoolEntry>,
 
-    /// The pool's token vault.
     #[account(mut)]
     pub vault: Account<'info, TokenAccount>,
 
-    /// Vault authority PDA that signs token transfers out of the vault.
     /// CHECK: Derived from pool seeds.
     #[account(
         seeds = [b"vault_authority", shield_pool.key().as_ref()],
@@ -73,21 +58,16 @@ pub struct Withdraw<'info> {
     )]
     pub vault_authority: UncheckedAccount<'info>,
 
-    /// Recipient's token account — can be anyone, breaking the link
-    /// between depositor and recipient.
     #[account(mut)]
     pub recipient_token_account: Account<'info, TokenAccount>,
 
-    /// Treasury token account for fee collection.
     #[account(mut)]
     pub treasury_token_account: Account<'info, TokenAccount>,
 
-    /// The token mint (needed for burn CPI).
     #[account(mut)]
     pub mint: Account<'info, anchor_spl::token::Mint>,
 
-    /// The withdrawer who submits the proof (pays gas, receives nothing).
-    /// This is intentionally separated from the recipient for privacy.
+    /// Relayer pays gas, receives nothing — separated from recipient for privacy.
     #[account(mut)]
     pub relayer: Signer<'info>,
 
@@ -103,7 +83,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
     let timelock_seconds = pool.timelock_seconds;
     let clock = Clock::get()?;
 
-    // Validate seed derivation
     let (expected_pool, _) = Pubkey::find_program_address(
         &[
             b"shield_pool",
@@ -117,10 +96,8 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         KiriteError::InvalidAmountProof
     );
 
-    // Validate pool is not frozen
     require!(!pool.frozen(), KiriteError::PoolFrozen);
 
-    // Validate vault, recipient mint, treasury mint, and mint key
     require!(
         ctx.accounts.vault.key() == pool_vault,
         KiriteError::InvalidAmountProof
@@ -138,7 +115,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         KiriteError::InvalidAmountProof
     );
 
-    // Validate pool_entry PDA
     let commitment_for_pda = compute_commitment(
         &params.nullifier_secret,
         denomination,
@@ -158,24 +134,20 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         KiriteError::InvalidAmountProof
     );
 
-    // --- 1. Validate nullifier secret ---
     require_nonzero_bytes(&params.nullifier_secret, KiriteError::InvalidAmountProof)?;
     require_nonzero_bytes(&params.blinding_factor, KiriteError::InvalidAmountProof)?;
 
-    // --- 2. Check timelock ---
     let deposit_time = ctx.accounts.pool_entry.deposited_at;
     require!(
         is_timelock_expired(deposit_time, timelock_seconds, clock.unix_timestamp),
         KiriteError::DepositTimelocked
     );
 
-    // --- 3. Verify the Merkle root is known ---
     require!(
         pool.is_known_root(&params.proof_root),
         KiriteError::InvalidMerkleProof
     );
 
-    // --- 4. Recompute commitment and verify Merkle proof ---
     let commitment = compute_commitment(
         &params.nullifier_secret,
         denomination,
@@ -193,13 +165,11 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         KiriteError::InvalidMerkleProof
     );
 
-    // --- 5. Compute and check nullifier hash ---
     let nullifier_hash = compute_nullifier_hash(&params.nullifier_secret, params.leaf_index);
 
     let consumed = ctx.accounts.nullifier_set.consume(params.leaf_index);
     require!(consumed, KiriteError::NullifierAlreadyUsed);
 
-    // --- 6. Calculate fees ---
     let fee_bps = ctx.accounts.protocol_config.fee_bps;
     let burn_ratio = ctx.accounts.protocol_config.burn_ratio_bps;
     let (net_amount, fee_amount) = calculate_net_amount(denomination, fee_bps)?;
@@ -207,7 +177,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
 
     drop(pool);
 
-    // --- 7. Transfer net amount to recipient ---
     let pool_key = ctx.accounts.shield_pool.key();
     let vault_authority_seeds = &[
         b"vault_authority".as_ref(),
@@ -216,7 +185,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
     ];
     let signer_seeds = &[&vault_authority_seeds[..]];
 
-    // Transfer net to recipient
     let transfer_net_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
         Transfer {
@@ -228,7 +196,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
     );
     token::transfer(transfer_net_ctx, net_amount)?;
 
-    // Transfer treasury portion
     if treasury_amount > 0 {
         let transfer_treasury_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -242,7 +209,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         token::transfer(transfer_treasury_ctx, treasury_amount)?;
     }
 
-    // Burn the burn portion
     if burn_amount > 0 {
         let burn_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -256,7 +222,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         token::burn(burn_ctx, burn_amount)?;
     }
 
-    // --- 8. Update state ---
     let mut pool_mut = ctx.accounts.shield_pool.load_mut()?;
     pool_mut.total_withdrawals = pool_mut.total_withdrawals.saturating_add(1);
     pool_mut.fees_collected = pool_mut.fees_collected.saturating_add(fee_amount);

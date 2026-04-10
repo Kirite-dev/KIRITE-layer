@@ -12,9 +12,6 @@ use crate::utils::validation::{
     GOVERNANCE_TIMELOCK_SECONDS,
 };
 
-// ============================================================================
-// Propose Fee Update
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct ProposeFeeUpdate<'info> {
@@ -84,9 +81,6 @@ pub fn handle_propose_fee_update(
     Ok(())
 }
 
-// ============================================================================
-// Execute Fee Update
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct ExecuteFeeUpdate<'info> {
@@ -119,7 +113,6 @@ pub fn handle_execute_fee_update(ctx: Context<ExecuteFeeUpdate>) -> Result<()> {
     let clock = Clock::get()?;
     let proposal = &ctx.accounts.fee_proposal;
 
-    // Enforce timelock
     require_governance_timelock_elapsed(proposal.proposed_at, clock.unix_timestamp)?;
 
     let old_fee_bps = ctx.accounts.protocol_config.fee_bps;
@@ -152,9 +145,6 @@ pub fn handle_execute_fee_update(ctx: Context<ExecuteFeeUpdate>) -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// Cancel Fee Proposal
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct CancelFeeProposal<'info> {
@@ -181,9 +171,6 @@ pub fn handle_cancel_fee_proposal(ctx: Context<CancelFeeProposal>) -> Result<()>
     Ok(())
 }
 
-// ============================================================================
-// Add Supported Mint
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct AddSupportedMint<'info> {
@@ -219,9 +206,6 @@ pub fn handle_add_supported_mint(ctx: Context<AddSupportedMint>) -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// Remove Supported Mint
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct RemoveSupportedMint<'info> {
@@ -257,9 +241,6 @@ pub fn handle_remove_supported_mint(ctx: Context<RemoveSupportedMint>) -> Result
     Ok(())
 }
 
-// ============================================================================
-// Transfer Authority
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct InitiateAuthorityTransfer<'info> {
@@ -271,7 +252,7 @@ pub struct InitiateAuthorityTransfer<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// CHECK: The new authority — no constraints on account type.
+    /// CHECK: Validated as wallet only.
     pub new_authority: UncheckedAccount<'info>,
 
     pub authority: Signer<'info>,
@@ -325,9 +306,6 @@ pub fn handle_accept_authority_transfer(ctx: Context<AcceptAuthorityTransfer>) -
     Ok(())
 }
 
-// ============================================================================
-// Freeze / Unfreeze Pool
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct FreezePool<'info> {
@@ -349,7 +327,6 @@ pub fn handle_freeze_pool(ctx: Context<FreezePool>, reason: String) -> Result<()
 
     {
         let pool = ctx.accounts.shield_pool.load()?;
-        // Validate seed derivation
         let (expected_pool, _) = Pubkey::find_program_address(
             &[
                 b"shield_pool",
@@ -388,7 +365,6 @@ pub fn handle_freeze_pool(ctx: Context<FreezePool>, reason: String) -> Result<()
 pub fn handle_unfreeze_pool(ctx: Context<FreezePool>) -> Result<()> {
     {
         let pool = ctx.accounts.shield_pool.load()?;
-        // Validate seed derivation
         let (expected_pool, _) = Pubkey::find_program_address(
             &[
                 b"shield_pool",
@@ -415,9 +391,6 @@ pub fn handle_unfreeze_pool(ctx: Context<FreezePool>) -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// Burn Accumulated Fees
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct BurnFees<'info> {
@@ -429,15 +402,12 @@ pub struct BurnFees<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
-    /// The token account holding accumulated fees to burn.
     #[account(mut)]
     pub fee_token_account: Account<'info, TokenAccount>,
 
-    /// The mint of the token being burned.
     #[account(mut)]
     pub mint: Account<'info, anchor_spl::token::Mint>,
 
-    /// Fee account authority PDA.
     /// CHECK: Derived from protocol seeds.
     #[account(
         seeds = [b"fee_authority", protocol_config.key().as_ref()],
@@ -492,9 +462,6 @@ pub fn handle_burn_fees(ctx: Context<BurnFees>, amount: u64) -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
-// Update Governance Signers
-// ============================================================================
 
 #[derive(Accounts)]
 pub struct UpdateGovernanceSigners<'info> {

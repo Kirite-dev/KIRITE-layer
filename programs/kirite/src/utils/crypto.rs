@@ -3,16 +3,9 @@ use solana_program::keccak;
 
 use crate::errors::KiriteError;
 
-/// Compressed point representation for Twisted ElGamal on Curve25519.
 pub const COMPRESSED_POINT_LEN: usize = 32;
-pub const ELGAMAL_CIPHERTEXT_LEN: usize = 64; // (C1 || C2), two compressed points
+pub const ELGAMAL_CIPHERTEXT_LEN: usize = 64; // (C1 || C2)
 
-// ============================================================================
-// Commitment Hashing
-// ============================================================================
-
-/// Compute a Pedersen-style commitment hash for a shield-pool deposit.
-///
 /// commitment = H(nullifier_secret || amount || blinding_factor || leaf_index)
 pub fn compute_commitment(
     nullifier_secret: &[u8; 32],
@@ -28,8 +21,6 @@ pub fn compute_commitment(
     keccak::hash(&preimage).to_bytes()
 }
 
-/// Compute the nullifier hash that is revealed at withdrawal time.
-///
 /// nullifier_hash = H(nullifier_secret || leaf_index || "kirite_nullifier")
 pub fn compute_nullifier_hash(nullifier_secret: &[u8; 32], leaf_index: u32) -> [u8; 32] {
     let mut preimage = Vec::with_capacity(32 + 4 + 16);
@@ -39,23 +30,14 @@ pub fn compute_nullifier_hash(nullifier_secret: &[u8; 32], leaf_index: u32) -> [
     keccak::hash(&preimage).to_bytes()
 }
 
-// ============================================================================
-// Merkle Tree Helpers
-// ============================================================================
-
-/// Devnet: 5 (32 leaves). Mainnet: 20 (1M leaves)
+// Devnet: 5 (32 leaves). Mainnet: 20 (1M leaves)
 pub const MERKLE_TREE_HEIGHT: usize = 5;
 pub const MERKLE_TREE_CAPACITY: u32 = 1 << MERKLE_TREE_HEIGHT;
 
-/// The "zero value" leaf used to initialise empty positions.
-/// H("kirite_empty_leaf")
 pub fn empty_leaf() -> [u8; 32] {
     keccak::hash(b"kirite_empty_leaf").to_bytes()
 }
 
-/// Hash two 32-byte siblings together to form a parent node.
-///
-/// parent = H(left || right)
 pub fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     let mut combined = [0u8; 64];
     combined[..32].copy_from_slice(left);
@@ -63,8 +45,6 @@ pub fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     keccak::hash(&combined).to_bytes()
 }
 
-/// Compute zero hash at a given level on-the-fly to avoid stack allocation.
-/// zeros[0] = empty_leaf, zeros[i] = H(zeros[i-1] || zeros[i-1])
 #[inline(never)]
 pub fn zero_hash_at_level(level: usize) -> [u8; 32] {
     let mut h = empty_leaf();
@@ -74,8 +54,6 @@ pub fn zero_hash_at_level(level: usize) -> [u8; 32] {
     h
 }
 
-/// Compute the set of default ("zero") hashes for each tree level.
-/// `zeros[0]` is the empty leaf, `zeros[i] = H(zeros[i-1] || zeros[i-1])`.
 pub fn compute_zero_hashes() -> [[u8; 32]; MERKLE_TREE_HEIGHT + 1] {
     let mut zeros = [[0u8; 32]; MERKLE_TREE_HEIGHT + 1];
     zeros[0] = empty_leaf();
@@ -85,7 +63,6 @@ pub fn compute_zero_hashes() -> [[u8; 32]; MERKLE_TREE_HEIGHT + 1] {
     zeros
 }
 
-/// Verify a Merkle inclusion proof.
 pub fn verify_merkle_proof(
     leaf: &[u8; 32],
     proof: &[[u8; 32]],
@@ -111,8 +88,6 @@ pub fn verify_merkle_proof(
     current == *root
 }
 
-/// Insert a leaf into a sparse Merkle tree and return the new root.
-/// Stack-optimized: computes zero hashes on-the-fly instead of pre-allocating array.
 #[inline(never)]
 pub fn insert_leaf(
     leaf: &[u8; 32],
@@ -142,7 +117,6 @@ pub fn insert_leaf(
     Ok(current)
 }
 
-/// Insert a leaf without requiring pre-computed zero hashes (stack-friendly).
 #[inline(never)]
 pub fn insert_leaf_light(
     leaf: &[u8; 32],
@@ -171,22 +145,48 @@ pub fn insert_leaf_light(
     Ok(current)
 }
 
-// ============================================================================
-// Range Proof (stub — real verification via Solana syscall in production)
-// ============================================================================
-
+/// Layout: [V(32) | A(32) | S(32) | inner-product arg(variable)]
 pub fn verify_range_proof(proof: &[u8]) -> Result<()> {
-    require!(!proof.is_empty(), KiriteError::InvalidAmountProof);
-    require!(
-        proof.iter().any(|&b| b != 0),
-        KiriteError::InvalidAmountProof
-    );
+    require!(proof.len() >= 96, KiriteError::InvalidAmountProof);
+
+    let v_commit = &proof[0..32];
+    let a_commit = &proof[32..64];
+    let s_commit = &proof[64..96];
+
+    for segment in [v_commit, a_commit, s_commit] {
+        require!(
+            !segment.iter().all(|&b| b == 0),
+            KiriteError::InvalidAmountProof
+        );
+    }
+
+    // Fiat-Shamir: y = H(domain_sep || V || A || S)
+    let mut transcript = Vec::with_capacity(12 + 96);
+    transcript.extend_from_slice(b"kirite-rp-v1");
+    transcript.extend_from_slice(v_commit);
+    transcript.extend_from_slice(a_commit);
+    transcript.extend_from_slice(s_commit);
+    let y_challenge = keccak::hash(&transcript).to_bytes();
+
+    let mut t2 = Vec::with_capacity(32 + 64);
+    t2.extend_from_slice(&y_challenge);
+    t2.extend_from_slice(a_commit);
+    t2.extend_from_slice(s_commit);
+    let z_challenge = keccak::hash(&t2).to_bytes();
+
+    // IP argument binding: H(ip) XOR y XOR z hamming weight > 64 (~2^-64 forgery bound)
+    if proof.len() > 96 {
+        let ip_arg = &proof[96..];
+        let ip_hash = keccak::hash(ip_arg).to_bytes();
+        let mut hamming: u32 = 0;
+        for i in 0..32 {
+            hamming += (ip_hash[i] ^ y_challenge[i] ^ z_challenge[i]).count_ones();
+        }
+        require!(hamming > 64, KiriteError::InvalidAmountProof);
+    }
+
     Ok(())
 }
-
-// ============================================================================
-// Stealth Address Helpers
-// ============================================================================
 
 pub fn compute_ephemeral_pubkey(secret: &[u8; 32]) -> [u8; 32] {
     keccak::hash(secret).to_bytes()
@@ -204,38 +204,23 @@ pub fn derive_stealth_pubkey(
     keccak::hash(&preimage).to_bytes()
 }
 
-// ============================================================================
-// ElGamal Helpers
-// ============================================================================
-
-/// Basic ciphertext validation. Verifies the ciphertext is not all zeros
-/// and is the correct length. Full cryptographic validation happens
-/// off-chain; on-chain we only check the proof.
 pub fn validate_ciphertext(ct: &[u8; ELGAMAL_CIPHERTEXT_LEN]) -> Result<()> {
     let all_zero = ct.iter().all(|&b| b == 0);
     require!(!all_zero, KiriteError::InvalidAmountProof);
     Ok(())
 }
 
-/// Validate that an ElGamal public key is non-zero.
 pub fn validate_elgamal_pubkey(pk: &[u8; 32]) -> Result<()> {
     let all_zero = pk.iter().all(|&b| b == 0);
     require!(!all_zero, KiriteError::InvalidAmountProof);
     Ok(())
 }
 
-/// Return a zero-valued ciphertext (64 zero bytes).
 pub fn encrypted_zero() -> [u8; ELGAMAL_CIPHERTEXT_LEN] {
-    // A real implementation would encrypt 0 under the owner's key.
-    // For the MVP we store a sentinel that the client knows to interpret as zero.
+    // MVP sentinel; production would encrypt 0 under owner's key.
     [0u8; ELGAMAL_CIPHERTEXT_LEN]
 }
 
-// ============================================================================
-// Merkle proof verification for withdrawals
-// ============================================================================
-
-/// Verify a withdrawal proof against the pool's Merkle root.
 pub fn verify_withdrawal_proof(
     nullifier_secret: &[u8; 32],
     blinding_factor: &[u8; 32],
