@@ -61,3 +61,5 @@ lcov.info
 *.orig
 
 .ci-devnet-keypair.json
+__rewrite.py
+.envfilter.sh
