@@ -297,6 +297,7 @@ Verify the devnet deployment on [Solana Explorer](https://explorer.solana.com/ad
 ## Links
 
 - Website: https://kirite.dev
+- Docs: https://kirite.dev/docs
 - X: https://x.com/KiriteDev
 - GitHub: https://github.com/Kirite-dev/KIRITE
 - Ticker: $KIRITE
