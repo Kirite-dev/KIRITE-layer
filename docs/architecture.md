@@ -46,7 +46,7 @@ This lets the program update encrypted balances by adding/subtracting encrypted 
 
 ### Range Proofs
 
-To prevent a sender from encrypting a negative value (which would create tokens out of thin air), each confidential transfer includes a Bulletproof-style range proof demonstrating that the encrypted amount is in `[0, 2^64)`.
+To prevent a sender from encrypting a negative value (which would create tokens out of thin air), each confidential transfer includes a Groth16 zero-knowledge range proof demonstrating that the encrypted amount is in `[0, 2^64)`. The proof is verified on-chain via Solana's native alt_bn128 pairing syscall (~100k compute units). The range proof circuit is implemented in Circom (`circuits/range64.circom`) with a verification key generated from a trusted setup ceremony.
 
 ### Account Structure
 
@@ -231,7 +231,7 @@ programs/kirite/src/
     mod.rs
     twisted_elgamal.rs          -- encryption/decryption
     pedersen.rs                 -- Pedersen commitments
-    range_proof.rs              -- Bulletproof range proofs
+    range_proof.rs              -- Groth16 range proofs (BN254 via alt_bn128)
     merkle.rs                   -- Poseidon Merkle tree
     zk_verify.rs                -- ZK proof verification
   errors.rs                     -- Custom error codes

@@ -254,7 +254,7 @@ The recipient publishes `(S, V)` as their stealth meta-address.
 
 ### 5.1 Trust Assumptions
 
-- **No trusted setup**: The Twisted ElGamal and Pedersen commitment schemes require no trusted setup. If Groth16 is used for pool proofs, a ceremony is required; alternatively, Plonk eliminates this requirement.
+- **Trusted setup (range proof only)**: The Twisted ElGamal and Pedersen commitment schemes require no trusted setup. Range proofs use Groth16 (BN254) which requires a one-time trusted setup ceremony. The verification key is derived from a powers-of-tau ceremony with a random beacon. The Circom circuit and ceremony artifacts are committed in `circuits/`.
 - **Solana runtime integrity**: The protocol trusts that the Solana runtime correctly executes BPF programs and enforces signer checks.
 - **Client-side key management**: Private keys (spend key, view key, deposit secrets) are managed client-side. The protocol cannot protect against client compromise.
 - **Cryptographic hardness**: Security relies on the discrete logarithm assumption over the Ristretto255 group.
