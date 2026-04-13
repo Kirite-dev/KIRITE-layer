@@ -22,6 +22,7 @@ export {
   getTransactionLogs,
   createMemoInstruction,
   estimateTransactionFee,
+  getMedianPriorityFee,
 } from "./transaction";
 
 export {

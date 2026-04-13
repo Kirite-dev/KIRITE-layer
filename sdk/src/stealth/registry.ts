@@ -23,6 +23,7 @@ import {
 } from "../utils/connection";
 import {
   buildTransaction,
+  getMedianPriorityFee,
   sendAndConfirmTransaction,
 } from "../utils/transaction";
 
@@ -257,11 +258,13 @@ export async function registerStealthMetaAddress(
     programId
   );
 
+  const priorityFee1 = await getMedianPriorityFee(connection);
   const tx = await buildTransaction(
     connection,
     wallet.publicKey,
     [registerIx],
-    COMPUTE_BUDGET.REGISTRY_UPDATE
+    COMPUTE_BUDGET.REGISTRY_UPDATE,
+    priorityFee1
   );
 
   return sendAndConfirmTransaction(connection, tx, [wallet], options);
@@ -284,11 +287,13 @@ export async function publishStealthAnnouncement(
     programId
   );
 
+  const priorityFee2 = await getMedianPriorityFee(connection);
   const tx = await buildTransaction(
     connection,
     wallet.publicKey,
     [announceIx],
-    COMPUTE_BUDGET.STEALTH_SEND
+    COMPUTE_BUDGET.STEALTH_SEND,
+    priorityFee2
   );
 
   return sendAndConfirmTransaction(connection, tx, [wallet], options);

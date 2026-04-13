@@ -33,6 +33,7 @@ import {
   buildTransaction,
   sendAndConfirmTransaction,
   createMemoInstruction,
+  getMedianPriorityFee,
 } from "../utils/transaction";
 import { deriveElGamalKeypair } from "../utils/keypair";
 import { fetchAccountOrThrow } from "../utils/connection";
@@ -238,11 +239,14 @@ export async function executeConfidentialTransfer(
     instructions.push(createMemoInstruction(memoText, wallet.publicKey));
   }
 
+  const priorityFee = await getMedianPriorityFee(connection);
+
   const tx = await buildTransaction(
     connection,
     wallet.publicKey,
     instructions,
-    COMPUTE_BUDGET.CONFIDENTIAL_TRANSFER
+    COMPUTE_BUDGET.CONFIDENTIAL_TRANSFER,
+    priorityFee
   );
 
   const signature = await sendAndConfirmTransaction(

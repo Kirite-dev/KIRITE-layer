@@ -32,7 +32,7 @@ import {
   computeLeafHash,
   verifyMerklePath,
 } from "./pool-state";
-import { buildTransaction, sendAndConfirmTransaction } from "../utils/transaction";
+import { buildTransaction, sendAndConfirmTransaction, getMedianPriorityFee } from "../utils/transaction";
 import { hash256, randomBytes } from "../utils/keypair";
 
 /**
@@ -300,11 +300,13 @@ export async function executeWithdraw(
     programId
   );
 
+  const priorityFee = await getMedianPriorityFee(connection);
   const tx = await buildTransaction(
     connection,
     wallet.publicKey,
     [withdrawIx],
-    COMPUTE_BUDGET.SHIELD_WITHDRAW
+    COMPUTE_BUDGET.SHIELD_WITHDRAW,
+    priorityFee
   );
 
   const signature = await sendAndConfirmTransaction(

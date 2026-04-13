@@ -33,7 +33,7 @@ import {
   fetchPoolState,
   computeLeafHash,
 } from "./pool-state";
-import { buildTransaction, sendAndConfirmTransaction } from "../utils/transaction";
+import { buildTransaction, sendAndConfirmTransaction, getMedianPriorityFee } from "../utils/transaction";
 import { randomBytes, hash256 } from "../utils/keypair";
 
 /**
@@ -271,11 +271,13 @@ export async function executeDeposit(
     programId
   );
 
+  const priorityFee = await getMedianPriorityFee(connection);
   const tx = await buildTransaction(
     connection,
     wallet.publicKey,
     [depositIx],
-    COMPUTE_BUDGET.SHIELD_DEPOSIT
+    COMPUTE_BUDGET.SHIELD_DEPOSIT,
+    priorityFee
   );
 
   const signature = await sendAndConfirmTransaction(

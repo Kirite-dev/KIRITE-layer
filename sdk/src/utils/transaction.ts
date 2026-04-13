@@ -275,6 +275,33 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Fetch the median recent prioritization fee from the network.
+ * Falls back to a conservative default if the RPC call fails.
+ */
+export async function getMedianPriorityFee(
+  connection: Connection,
+  fallback: number = 1_000
+): Promise<number> {
+  try {
+    const fees = await connection.getRecentPrioritizationFees();
+    if (!fees || fees.length === 0) return fallback;
+
+    const sorted = fees
+      .map((f) => f.prioritizationFee)
+      .filter((f) => f > 0)
+      .sort((a, b) => a - b);
+
+    if (sorted.length === 0) return fallback;
+
+    // Use the 75th percentile for reliable inclusion
+    const idx = Math.floor(sorted.length * 0.75);
+    return Math.max(sorted[idx], fallback);
+  } catch {
+    return fallback;
+  }
+}
+
 export function createMemoInstruction(
   memo: string,
   signer: PublicKey
