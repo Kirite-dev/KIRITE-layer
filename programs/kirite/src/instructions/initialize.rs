@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::errors::KiriteError;
 use crate::events::{ProtocolInitialized, ProtocolPaused, ProtocolResumed, ShieldPoolCreated};
 use crate::state::protocol::{GovernanceState, ProtocolConfig};
-use crate::state::shield_pool::{NullifierSet, PoolConfig, ShieldPool, NULLIFIER_BITFIELD_BYTES};
+use crate::state::shield_pool::{PoolConfig, ShieldPool};
 use crate::utils::crypto::compute_zero_hashes;
 use crate::utils::validation::{
     validate_denomination, validate_fee_bps, validate_timelock_duration,
@@ -103,15 +103,6 @@ pub struct InitializeShieldPool<'info> {
     pub shield_pool: AccountLoader<'info, ShieldPool>,
 
     #[account(
-        init,
-        payer = operator,
-        space = NullifierSet::SPACE,
-        seeds = [b"nullifier_set", shield_pool.key().as_ref()],
-        bump,
-    )]
-    pub nullifier_set: Account<'info, NullifierSet>,
-
-    #[account(
         mut,
         seeds = [b"protocol_config"],
         bump = protocol_config.bump,
@@ -163,14 +154,9 @@ pub fn handle_initialize_shield_pool(
     pool.timelock_seconds = config.timelock_seconds;
     pool.is_frozen = 0;
     pool.created_at = clock.unix_timestamp;
+    pool.last_deposit_at = 0;
     pool.bump = ctx.bumps.shield_pool;
     pool.vault_authority_bump = 0; // set during vault init
-
-    let nullifier = &mut ctx.accounts.nullifier_set;
-    nullifier.pool = ctx.accounts.shield_pool.key();
-    nullifier.count = 0;
-    nullifier.bump = ctx.bumps.nullifier_set;
-    nullifier.bitfield = vec![0u8; NULLIFIER_BITFIELD_BYTES];
 
     let protocol = &mut ctx.accounts.protocol_config;
     protocol.total_pools = protocol.total_pools.saturating_add(1);

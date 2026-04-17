@@ -4,16 +4,17 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use crate::errors::KiriteError;
 use crate::events::DepositCommitted;
 use crate::state::protocol::ProtocolConfig;
-use crate::state::shield_pool::{PoolEntry, ShieldPool};
-use crate::utils::crypto::{
-    compute_commitment, insert_leaf_light, ELGAMAL_CIPHERTEXT_LEN, MERKLE_TREE_HEIGHT,
-};
-use crate::utils::validation::require_nonzero_bytes;
+use crate::state::shield_pool::ShieldPool;
+use crate::utils::crypto::{insert_leaf_light, ELGAMAL_CIPHERTEXT_LEN, MERKLE_TREE_HEIGHT};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct DepositParams {
-    pub nullifier_secret: [u8; 32],
-    pub blinding_factor: [u8; 32],
+    /// Poseidon-based leaf commitment computed off-chain by the
+    /// depositor. Pre-image — (nullifier_secret, blinding_factor,
+    /// amount, leaf_index) — never leaves the depositor's device.
+    /// On-chain we only insert the hash into the Merkle tree; if the
+    /// commitment is malformed the matching withdraw will simply fail
+    /// to produce a valid Groth16 proof and the funds become unspendable.
     pub commitment: [u8; 32],
 }
 
@@ -29,19 +30,6 @@ pub struct Deposit<'info> {
         constraint = !protocol_config.is_paused @ KiriteError::ProtocolPaused,
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
-
-    #[account(
-        init,
-        payer = depositor,
-        space = PoolEntry::SPACE,
-        seeds = [
-            b"pool_entry",
-            shield_pool.key().as_ref(),
-            &params.commitment,
-        ],
-        bump,
-    )]
-    pub pool_entry: Account<'info, PoolEntry>,
 
     #[account(
         mut,
@@ -87,22 +75,6 @@ fn do_token_transfer<'info>(
     token::transfer(transfer_ctx, amount)
 }
 
-#[inline(never)]
-fn verify_commitment(
-    nullifier_secret: &[u8; 32],
-    denomination: u64,
-    blinding_factor: &[u8; 32],
-    leaf_index: u32,
-    claimed_commitment: &[u8; 32],
-) -> Result<()> {
-    let expected = compute_commitment(nullifier_secret, denomination, blinding_factor, leaf_index);
-    require!(
-        expected == *claimed_commitment,
-        KiriteError::InvalidAmountProof
-    );
-    Ok(())
-}
-
 pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()> {
     let pool = ctx.accounts.shield_pool.load()?;
     let denomination = pool.denomination;
@@ -136,21 +108,17 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
 
     drop(pool);
 
-    require_nonzero_bytes(&params.nullifier_secret, KiriteError::InvalidAmountProof)?;
-    require_nonzero_bytes(&params.blinding_factor, KiriteError::InvalidAmountProof)?;
+    // Reject the all-zero commitment outright. A zero leaf would collide
+    // with the Merkle empty-leaf sentinel and corrupt root computation.
+    require!(
+        params.commitment.iter().any(|&b| b != 0),
+        KiriteError::InvalidAmountProof
+    );
 
     require!(
         ctx.accounts.depositor_token_account.amount >= denomination,
         KiriteError::InsufficientEncryptedBalance
     );
-
-    verify_commitment(
-        &params.nullifier_secret,
-        denomination,
-        &params.blinding_factor,
-        leaf_index,
-        &params.commitment,
-    )?;
 
     do_token_transfer(
         ctx.accounts.token_program.to_account_info(),
@@ -172,16 +140,8 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
         .checked_add(1)
         .ok_or(KiriteError::PoolCapacityExceeded)?;
     pool_mut.total_deposits = pool_mut.total_deposits.saturating_add(1);
+    pool_mut.last_deposit_at = Clock::get()?.unix_timestamp;
     drop(pool_mut);
-
-    let entry = &mut ctx.accounts.pool_entry;
-    entry.pool = ctx.accounts.shield_pool.key();
-    entry.depositor = ctx.accounts.depositor.key();
-    entry.commitment_hash = params.commitment;
-    entry.leaf_index = leaf_index;
-    entry.deposited_at = Clock::get()?.unix_timestamp;
-    entry.is_withdrawn = false;
-    entry.bump = ctx.bumps.pool_entry;
 
     emit!(DepositCommitted {
         pool: ctx.accounts.shield_pool.key(),
@@ -196,5 +156,3 @@ pub fn handle_deposit(ctx: Context<Deposit>, params: DepositParams) -> Result<()
 
     Ok(())
 }
-// rev6
-// deposit validation branch
