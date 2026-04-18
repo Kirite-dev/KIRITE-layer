@@ -4,22 +4,24 @@ use anchor_spl::token::{self, Burn, Token, TokenAccount, Transfer};
 use crate::errors::KiriteError;
 use crate::events::WithdrawalExecuted;
 use crate::state::protocol::ProtocolConfig;
-use crate::state::shield_pool::{NullifierSet, PoolEntry, ShieldPool};
-use crate::utils::crypto::{
-    compute_commitment, compute_nullifier_hash, verify_merkle_proof, MERKLE_TREE_HEIGHT,
-};
+use crate::state::shield_pool::{NullifierRecord, ShieldPool};
 use crate::utils::math::{calculate_net_amount, split_fee};
-use crate::utils::validation::{is_timelock_expired, require_nonzero_bytes};
+use crate::utils::zk::{
+    pubkey_to_field, u64_to_field_be, verify_membership_proof, N_PUBLIC_INPUTS, PROOF_LEN,
+    PUBLIC_INPUT_LEN,
+};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct WithdrawParams {
-    pub nullifier_secret: [u8; 32],
-    pub blinding_factor: [u8; 32],
-    pub leaf_index: u32,
-    pub merkle_proof: [[u8; 32]; MERKLE_TREE_HEIGHT],
-    /// Must match a known root (current or recent historical).
+    /// Groth16 proof bytes: proof_a (64) || proof_b (128) || proof_c (64).
+    pub proof: [u8; PROOF_LEN],
+    /// Nullifier hash that the proof publishes. Used as the seed of the
+    /// `nullifier_record` PDA — its first-time creation is the
+    /// double-spend gate.
+    pub nullifier_hash: [u8; 32],
+    /// Merkle root the proof commits to. Must equal one of the pool's
+    /// known roots (current or recent historical).
     pub proof_root: [u8; 32],
-    pub range_proof: [u8; 128],
 }
 
 #[derive(Accounts)]
@@ -35,21 +37,20 @@ pub struct Withdraw<'info> {
     )]
     pub protocol_config: Account<'info, ProtocolConfig>,
 
+    /// Per-nullifier marker. `init` reverts if the PDA already exists,
+    /// which means this nullifier_hash has already been spent. The
+    /// account stays on chain forever as the proof of consumption.
     #[account(
-        mut,
-        seeds = [b"nullifier_set", shield_pool.key().as_ref()],
-        bump = nullifier_set.bump,
+        init,
+        payer = relayer,
+        space = NullifierRecord::SPACE,
+        seeds = [b"nullifier", shield_pool.key().as_ref(), &params.nullifier_hash],
+        bump,
     )]
-    pub nullifier_set: Account<'info, NullifierSet>,
-
-    #[account(
-        mut,
-        constraint = !pool_entry.is_withdrawn @ KiriteError::DepositAlreadyWithdrawn,
-    )]
-    pub pool_entry: Account<'info, PoolEntry>,
+    pub nullifier_record: Box<Account<'info, NullifierRecord>>,
 
     #[account(mut)]
-    pub vault: Account<'info, TokenAccount>,
+    pub vault: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: Derived from pool seeds.
     #[account(
@@ -59,15 +60,17 @@ pub struct Withdraw<'info> {
     pub vault_authority: UncheckedAccount<'info>,
 
     #[account(mut)]
-    pub recipient_token_account: Account<'info, TokenAccount>,
+    pub recipient_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
-    pub treasury_token_account: Account<'info, TokenAccount>,
+    pub treasury_token_account: Box<Account<'info, TokenAccount>>,
 
     #[account(mut)]
-    pub mint: Account<'info, anchor_spl::token::Mint>,
+    pub mint: Box<Account<'info, anchor_spl::token::Mint>>,
 
-    /// Relayer pays gas, receives nothing — separated from recipient for privacy.
+    /// Relayer pays gas + nullifier rent, receives nothing — separated
+    /// from the recipient so the on-chain tx never identifies the actual
+    /// withdrawer.
     #[account(mut)]
     pub relayer: Signer<'info>,
 
@@ -80,7 +83,6 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
     let denomination = pool.denomination;
     let pool_mint = pool.mint;
     let pool_vault = pool.vault;
-    let timelock_seconds = pool.timelock_seconds;
     let clock = Clock::get()?;
 
     let (expected_pool, _) = Pubkey::find_program_address(
@@ -115,60 +117,24 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         KiriteError::InvalidAmountProof
     );
 
-    let commitment_for_pda = compute_commitment(
-        &params.nullifier_secret,
-        denomination,
-        &params.blinding_factor,
-        params.leaf_index,
-    );
-    let (expected_entry, _) = Pubkey::find_program_address(
-        &[
-            b"pool_entry",
-            ctx.accounts.shield_pool.key().as_ref(),
-            &commitment_for_pda,
-        ],
-        ctx.program_id,
-    );
-    require!(
-        ctx.accounts.pool_entry.key() == expected_entry,
-        KiriteError::InvalidAmountProof
-    );
-
-    require_nonzero_bytes(&params.nullifier_secret, KiriteError::InvalidAmountProof)?;
-    require_nonzero_bytes(&params.blinding_factor, KiriteError::InvalidAmountProof)?;
-
-    let deposit_time = ctx.accounts.pool_entry.deposited_at;
-    require!(
-        is_timelock_expired(deposit_time, timelock_seconds, clock.unix_timestamp),
-        KiriteError::DepositTimelocked
-    );
-
     require!(
         pool.is_known_root(&params.proof_root),
         KiriteError::InvalidMerkleProof
     );
 
-    let commitment = compute_commitment(
-        &params.nullifier_secret,
-        denomination,
-        &params.blinding_factor,
-        params.leaf_index,
-    );
+    // Build the public-input vector in the order the circuit expects:
+    // (root, nullifier_hash, amount, recipient_hash). The recipient_hash
+    // binding prevents a malicious watcher from replaying the proof to
+    // a different address.
+    let recipient_field = pubkey_to_field(&ctx.accounts.recipient_token_account.key());
+    let public_inputs: [[u8; PUBLIC_INPUT_LEN]; N_PUBLIC_INPUTS] = [
+        params.proof_root,
+        params.nullifier_hash,
+        u64_to_field_be(denomination),
+        recipient_field,
+    ];
 
-    require!(
-        verify_merkle_proof(
-            &commitment,
-            &params.merkle_proof,
-            params.leaf_index,
-            &params.proof_root,
-        ),
-        KiriteError::InvalidMerkleProof
-    );
-
-    let nullifier_hash = compute_nullifier_hash(&params.nullifier_secret, params.leaf_index);
-
-    let consumed = ctx.accounts.nullifier_set.consume(params.leaf_index);
-    require!(consumed, KiriteError::NullifierAlreadyUsed);
+    verify_membership_proof(&params.proof, &public_inputs)?;
 
     let fee_bps = ctx.accounts.protocol_config.fee_bps;
     let burn_ratio = ctx.accounts.protocol_config.burn_ratio_bps;
@@ -209,7 +175,11 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
         token::transfer(transfer_treasury_ctx, treasury_amount)?;
     }
 
-    if burn_amount > 0 {
+    // WSOL accounts cannot be burned (SPL token program rejects `Burn`
+    // on native mints). For SOL-denominated pools we redirect the burn
+    // share to the treasury instead so the fee split is still honored.
+    let is_native_mint = ctx.accounts.mint.key() == anchor_spl::token::spl_token::native_mint::id();
+    if burn_amount > 0 && !is_native_mint {
         let burn_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             Burn {
@@ -220,6 +190,17 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
             signer_seeds,
         );
         token::burn(burn_ctx, burn_amount)?;
+    } else if burn_amount > 0 {
+        let redirect_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.vault.to_account_info(),
+                to: ctx.accounts.treasury_token_account.to_account_info(),
+                authority: ctx.accounts.vault_authority.to_account_info(),
+            },
+            signer_seeds,
+        );
+        token::transfer(redirect_ctx, burn_amount)?;
     }
 
     let mut pool_mut = ctx.accounts.shield_pool.load_mut()?;
@@ -227,26 +208,27 @@ pub fn handle_withdraw(ctx: Context<Withdraw>, params: WithdrawParams) -> Result
     pool_mut.fees_collected = pool_mut.fees_collected.saturating_add(fee_amount);
     drop(pool_mut);
 
-    let entry = &mut ctx.accounts.pool_entry;
-    entry.is_withdrawn = true;
+    let record = &mut ctx.accounts.nullifier_record;
+    record.pool = ctx.accounts.shield_pool.key();
+    record.nullifier_hash = params.nullifier_hash;
+    record.consumed_at = clock.unix_timestamp;
+    record.bump = ctx.bumps.nullifier_record;
 
     emit!(WithdrawalExecuted {
         pool: ctx.accounts.shield_pool.key(),
         recipient: ctx.accounts.recipient_token_account.key(),
-        nullifier_hash,
+        nullifier_hash: params.nullifier_hash,
         fee_amount,
         net_amount,
         timestamp: clock.unix_timestamp,
     });
 
     msg!(
-        "KIRITE: withdrawal executed | pool={} leaf={} net={} fee={}",
+        "KIRITE: withdrawal executed | pool={} net={} fee={}",
         ctx.accounts.shield_pool.key(),
-        params.leaf_index,
         net_amount,
         fee_amount
     );
 
     Ok(())
 }
-// rev7
