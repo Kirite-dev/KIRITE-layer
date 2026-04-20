@@ -3,7 +3,6 @@ use anchor_lang::prelude::*;
 use crate::utils::crypto::MERKLE_TREE_HEIGHT;
 
 pub const MAX_HISTORICAL_ROOTS: usize = 3;
-pub const NULLIFIER_BITFIELD_BYTES: usize = 1_024;
 
 #[account(zero_copy)]
 #[repr(C)]
@@ -21,8 +20,9 @@ pub struct ShieldPool {
     pub total_deposits: u64,    // 8
     pub total_withdrawals: u64, // 8
     pub fees_collected: u64,    // 8
-    pub timelock_seconds: i64,  // 8
+    pub timelock_seconds: i64,  // 8 (legacy, retained for layout stability)
     pub created_at: i64,        // 8
+    pub last_deposit_at: i64,   // 8 — timestamp of the most recent deposit
     // 4-byte aligned
     pub next_leaf_index: u32, // 4
     // 1-byte fields grouped
@@ -55,54 +55,21 @@ impl ShieldPool {
     }
 }
 
+/// Per-nullifier record. Existence of the PDA at
+/// `[b"nullifier", pool, nullifier_hash]` is the double-spend signal:
+/// if it already exists, the second `init` fails and the withdraw
+/// reverts. Indexing by the nullifier hash (rather than leaf index)
+/// keeps the deposit-to-withdraw mapping unobservable on-chain.
 #[account]
-pub struct PoolEntry {
+pub struct NullifierRecord {
     pub pool: Pubkey,
-    pub depositor: Pubkey,
-    pub commitment_hash: [u8; 32],
-    pub leaf_index: u32,
-    pub deposited_at: i64,
-    pub is_withdrawn: bool,
+    pub nullifier_hash: [u8; 32],
+    pub consumed_at: i64,
     pub bump: u8,
 }
 
-impl PoolEntry {
-    pub const SPACE: usize = 8 + 32 + 32 + 32 + 4 + 8 + 1 + 1;
-}
-
-#[account]
-pub struct NullifierSet {
-    pub pool: Pubkey,
-    pub count: u64,
-    pub bump: u8,
-    pub bitfield: Vec<u8>,
-}
-
-impl NullifierSet {
-    pub const SPACE: usize = 8 + 32 + 8 + 1 + 4 + NULLIFIER_BITFIELD_BYTES;
-
-    pub fn is_consumed(&self, leaf_index: u32) -> bool {
-        let byte_idx = (leaf_index / 8) as usize;
-        let bit_mask = 1u8 << (leaf_index % 8);
-        if byte_idx >= self.bitfield.len() {
-            return false;
-        }
-        self.bitfield[byte_idx] & bit_mask != 0
-    }
-
-    pub fn consume(&mut self, leaf_index: u32) -> bool {
-        let byte_idx = (leaf_index / 8) as usize;
-        let bit_mask = 1u8 << (leaf_index % 8);
-        if byte_idx >= self.bitfield.len() {
-            self.bitfield.resize(byte_idx + 1, 0);
-        }
-        if self.bitfield[byte_idx] & bit_mask != 0 {
-            return false;
-        }
-        self.bitfield[byte_idx] |= bit_mask;
-        self.count += 1;
-        true
-    }
+impl NullifierRecord {
+    pub const SPACE: usize = 8 + 32 + 32 + 8 + 1;
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]

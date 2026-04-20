@@ -15,7 +15,7 @@ use instructions::withdraw::*;
 use state::shield_pool::PoolConfig;
 use state::stealth::{CreateStealthParams, ResolveStealthParams};
 
-declare_id!("4bUHrDPuRcoYPU7UTLojXtxJsWoCj3HJbKX9oLnEnYy6");
+declare_id!("FjYwYT9PDcW2UmM2siXpURjSSCDoXTvviqb3V8amzusL");
 
 #[program]
 pub mod kirite {
