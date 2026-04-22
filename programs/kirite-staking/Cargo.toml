@@ -1,0 +1,29 @@
+[package]
+name = "kirite-staking"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Stake KIRITE, earn the protocol's privacy-traffic fees in SOL."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "kirite_staking"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { workspace = true, features = ["init-if-needed"] }
+anchor-spl = { workspace = true, features = ["token", "associated_token", "token_2022"] }
+solana-program = { workspace = true }
+
+# Pin transitive deps that newer publishes pushed to edition2024; the
+# cargo bundled with cargo-build-sbf (1.79) cannot parse those.
+crypto-common = "=0.1.6"
