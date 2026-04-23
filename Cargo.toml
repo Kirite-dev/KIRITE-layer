@@ -25,6 +25,7 @@ bs58 = "0.5"
 thiserror = "1.0"
 curve25519-dalek = { version = "4.1", default-features = false, features = ["alloc"] }
 
+
 [profile.release]
 overflow-checks = true
 lto = "fat"
