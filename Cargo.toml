@@ -16,7 +16,7 @@ keywords = ["solana", "anchor", "privacy", "confidential-transfer", "web3"]
 categories = ["cryptography", "network-programming"]
 
 [workspace.dependencies]
-anchor-lang = "0.30.1"
+anchor-lang = "1.0.1"
 anchor-spl = "0.30.1"
 solana-program = "=1.18.26"
 borsh = "1.5"
