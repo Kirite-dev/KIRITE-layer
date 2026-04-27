@@ -235,9 +235,10 @@ export async function getTransactionLogs(
 
 /** Exponential backoff with random jitter (up to 50% of delay). */
 function calculateBackoff(attempt: number, config: RetryConfig): number {
-  const exponentialDelay =
-    config.baseDelay * Math.pow(config.backoffMultiplier, attempt - 1);
-  const cappedDelay = Math.min(exponentialDelay, config.maxDelay);
+  const base = config.initialDelayMs ?? config.baseDelay ?? 500;
+  const cap = config.maxDelayMs ?? config.maxDelay ?? 5000;
+  const exponentialDelay = base * Math.pow(config.backoffMultiplier, attempt - 1);
+  const cappedDelay = Math.min(exponentialDelay, cap);
   const jitter = Math.random() * cappedDelay * 0.5;
   return Math.floor(cappedDelay + jitter);
 }

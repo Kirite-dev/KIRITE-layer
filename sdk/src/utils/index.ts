@@ -27,7 +27,6 @@ export {
 
 export {
   deriveKeypair,
-  deriveElGamalKeypair,
   deriveViewingKeypair,
   deriveSpendingKeypair,
   generateKeypair,

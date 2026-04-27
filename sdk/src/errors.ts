@@ -55,10 +55,7 @@ export class TransactionError extends KiriteError {
 
 export class ConfirmationTimeoutError extends TransactionError {
   constructor(signature: string, timeoutMs: number) {
-    super(
-      `Transaction confirmation timed out after ${timeoutMs}ms`,
-      signature
-    );
+    super(`Transaction confirmation timed out after ${timeoutMs}ms`, signature);
     this.name = "ConfirmationTimeoutError";
     Object.setPrototypeOf(this, ConfirmationTimeoutError.prototype);
   }
@@ -72,33 +69,17 @@ export class SimulationError extends TransactionError {
   }
 }
 
-export class EncryptionError extends KiriteError {
-  constructor(operation: "encrypt" | "decrypt", reason: string) {
-    super(`${operation} failed: ${reason}`, 3000, { operation });
-    this.name = "EncryptionError";
-    Object.setPrototypeOf(this, EncryptionError.prototype);
-  }
-}
-
 export class ProofError extends KiriteError {
-  constructor(proofType: string, reason: string) {
-    super(`Failed to generate ${proofType} proof: ${reason}`, 3001, { proofType });
+  constructor(reason: string, context: Record<string, unknown> = {}) {
+    super(`Proof error: ${reason}`, 4000, context);
     this.name = "ProofError";
     Object.setPrototypeOf(this, ProofError.prototype);
   }
 }
 
-export class ProofVerificationError extends KiriteError {
-  constructor(proofType: string) {
-    super(`${proofType} proof verification failed`, 3002, { proofType });
-    this.name = "ProofVerificationError";
-    Object.setPrototypeOf(this, ProofVerificationError.prototype);
-  }
-}
-
 export class InvalidAmountError extends KiriteError {
   constructor(amount: string, reason: string) {
-    super(`Invalid amount ${amount}: ${reason}`, 4000, { amount });
+    super(`Invalid amount ${amount}: ${reason}`, 5000, { amount, reason });
     this.name = "InvalidAmountError";
     Object.setPrototypeOf(this, InvalidAmountError.prototype);
   }
@@ -106,26 +87,26 @@ export class InvalidAmountError extends KiriteError {
 
 export class PoolNotFoundError extends KiriteError {
   constructor(poolId: string) {
-    super(`Shield pool not found: ${poolId}`, 4001, { poolId });
+    super(`Pool not found: ${poolId}`, 5001, { poolId });
     this.name = "PoolNotFoundError";
     Object.setPrototypeOf(this, PoolNotFoundError.prototype);
   }
 }
 
-export class PoolPausedError extends KiriteError {
+export class PoolFrozenError extends KiriteError {
   constructor(poolId: string) {
-    super(`Shield pool is paused: ${poolId}`, 4002, { poolId });
-    this.name = "PoolPausedError";
-    Object.setPrototypeOf(this, PoolPausedError.prototype);
+    super(`Pool is frozen by authority: ${poolId}`, 5002, { poolId });
+    this.name = "PoolFrozenError";
+    Object.setPrototypeOf(this, PoolFrozenError.prototype);
   }
 }
 
 export class InvalidDenominationError extends KiriteError {
-  constructor(amount: string, supported: string[]) {
+  constructor(denomination: string, allowed: string[]) {
     super(
-      `Amount ${amount} is not a supported denomination. Supported: ${supported.join(", ")}`,
-      4003,
-      { amount, supported }
+      `Invalid denomination ${denomination}. Allowed: ${allowed.join(", ")}`,
+      5003,
+      { denomination, allowed }
     );
     this.name = "InvalidDenominationError";
     Object.setPrototypeOf(this, InvalidDenominationError.prototype);
@@ -133,8 +114,8 @@ export class InvalidDenominationError extends KiriteError {
 }
 
 export class NullifierSpentError extends KiriteError {
-  constructor(nullifier: string) {
-    super(`Nullifier already spent: ${nullifier}`, 4004, { nullifier });
+  constructor(nullifierHash: string) {
+    super(`Nullifier already spent: ${nullifierHash}`, 5004, { nullifierHash });
     this.name = "NullifierSpentError";
     Object.setPrototypeOf(this, NullifierSpentError.prototype);
   }
@@ -142,7 +123,7 @@ export class NullifierSpentError extends KiriteError {
 
 export class TreeFullError extends KiriteError {
   constructor(poolId: string, capacity: number) {
-    super(`Merkle tree full for pool ${poolId} (capacity: ${capacity})`, 4005, {
+    super(`Merkle tree is full for pool ${poolId} (capacity ${capacity})`, 5005, {
       poolId,
       capacity,
     });
@@ -153,7 +134,7 @@ export class TreeFullError extends KiriteError {
 
 export class StealthAddressError extends KiriteError {
   constructor(reason: string) {
-    super(`Stealth address error: ${reason}`, 5000);
+    super(`Stealth address error: ${reason}`, 6000);
     this.name = "StealthAddressError";
     Object.setPrototypeOf(this, StealthAddressError.prototype);
   }
@@ -161,18 +142,15 @@ export class StealthAddressError extends KiriteError {
 
 export class RegistryNotFoundError extends KiriteError {
   constructor(owner: string) {
-    super(`Stealth registry entry not found for: ${owner}`, 5001, { owner });
+    super(`Stealth registry entry not found for owner: ${owner}`, 6001, { owner });
     this.name = "RegistryNotFoundError";
     Object.setPrototypeOf(this, RegistryNotFoundError.prototype);
   }
 }
 
 export class AccountNotFoundError extends KiriteError {
-  constructor(address: string, accountType: string) {
-    super(`${accountType} account not found at ${address}`, 6000, {
-      address,
-      accountType,
-    });
+  constructor(account: string) {
+    super(`Account not found: ${account}`, 7000, { account });
     this.name = "AccountNotFoundError";
     Object.setPrototypeOf(this, AccountNotFoundError.prototype);
   }
@@ -180,7 +158,7 @@ export class AccountNotFoundError extends KiriteError {
 
 export class InsufficientBalanceError extends KiriteError {
   constructor(required: string, available: string) {
-    super(`Insufficient balance: need ${required}, have ${available}`, 6001, {
+    super(`Insufficient balance. Required: ${required}, available: ${available}`, 7001, {
       required,
       available,
     });
@@ -189,66 +167,35 @@ export class InsufficientBalanceError extends KiriteError {
   }
 }
 
-const PROGRAM_ERROR_MAP: Record<number, string> = {
-  6000: "Invalid proof",
-  6001: "Amount overflow",
-  6002: "Insufficient balance",
-  6003: "Invalid nullifier",
-  6004: "Nullifier already spent",
-  6005: "Invalid Merkle root",
-  6006: "Tree is full",
-  6007: "Pool is paused",
-  6008: "Invalid denomination",
-  6009: "Unauthorized",
-  6010: "Invalid stealth address",
-  6011: "Registry entry exists",
-  6012: "Invalid commitment",
-  6013: "Invalid encryption key",
-  6014: "Decryption failed",
-  6015: "Invalid range proof",
-  6016: "Invalid equality proof",
-};
+export class RelayerError extends KiriteError {
+  constructor(reason: string, status?: number) {
+    super(`Relayer error: ${reason}`, 8000, { status });
+    this.name = "RelayerError";
+    Object.setPrototypeOf(this, RelayerError.prototype);
+  }
+}
 
-/** Maps on-chain program error logs to typed KiriteError instances */
-export function parseTransactionError(logs: string[]): KiriteError {
-  for (const log of logs) {
-    const anchorMatch = log.match(/Error Code: (\w+)\. Error Number: (\d+)\. Error Message: (.+)/);
-    if (anchorMatch) {
-      const errorNumber = parseInt(anchorMatch[2], 10);
-      const errorMessage = anchorMatch[3];
-      const mappedMessage = PROGRAM_ERROR_MAP[errorNumber] || errorMessage;
-      return new KiriteError(mappedMessage, errorNumber, {
-        errorCode: anchorMatch[1],
-        logs,
-      });
-    }
+export function isKiriteError(error: unknown): error is KiriteError {
+  return error instanceof KiriteError;
+}
 
-    const customMatch = log.match(/Program log: Error: (.+)/);
-    if (customMatch) {
-      return new KiriteError(customMatch[1], 2000, { logs });
-    }
+export function parseTransactionError(logs: string[] | undefined): KiriteError | null {
+  if (!logs || logs.length === 0) return null;
 
-    if (log.includes("insufficient lamports")) {
-      return new InsufficientBalanceError("unknown", "unknown");
-    }
+  const joined = logs.join("\n").toLowerCase();
 
-    if (log.includes("custom program error: 0x")) {
-      const hexMatch = log.match(/custom program error: (0x[0-9a-fA-F]+)/);
-      if (hexMatch) {
-        const code = parseInt(hexMatch[1], 16);
-        const message = PROGRAM_ERROR_MAP[code] || `Unknown program error: ${hexMatch[1]}`;
-        return new KiriteError(message, code, { logs });
-      }
-    }
+  if (joined.includes("nullifier") && (joined.includes("already") || joined.includes("spent"))) {
+    return new NullifierSpentError("(see logs)");
+  }
+  if (joined.includes("tree") && joined.includes("full")) {
+    return new TreeFullError("(unknown)", 0);
+  }
+  if (joined.includes("pool") && (joined.includes("frozen") || joined.includes("paused"))) {
+    return new PoolFrozenError("(unknown)");
+  }
+  if (joined.includes("invalid") && joined.includes("proof")) {
+    return new ProofError("on-chain verifier rejected proof");
   }
 
-  return new TransactionError("Transaction failed with unknown error", undefined, logs);
+  return null;
 }
-
-export function isKiriteError<T extends KiriteError>(
-  error: unknown,
-  errorClass: new (...args: any[]) => T
-): error is T {
-  return error instanceof errorClass;
-}
-// err rev #8

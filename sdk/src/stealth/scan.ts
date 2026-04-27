@@ -255,7 +255,7 @@ export function calculateStealthBalances(
   const balances = new Map<string, BN>();
 
   for (const payment of payments) {
-    const mintKey = payment.mint.toBase58();
+    const mintKey = payment.mint ? payment.mint.toBase58() : "SOL";
     const current = balances.get(mintKey) || new BN(0);
     balances.set(mintKey, current.add(payment.amount));
   }

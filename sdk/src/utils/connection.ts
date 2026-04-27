@@ -43,7 +43,7 @@ export async function fetchAccountOrThrow(
 ): Promise<AccountInfo<Buffer>> {
   const account = await connection.getAccountInfo(address);
   if (!account) {
-    throw new AccountNotFoundError(address.toBase58(), accountType);
+    throw new AccountNotFoundError(`${accountType}:${address.toBase58()}`);
   }
   return account;
 }
@@ -73,7 +73,7 @@ export async function fetchProgramAccounts(
   const accounts = await connection.getProgramAccounts(programId, {
     filters,
   });
-  return accounts;
+  return accounts.map((a) => ({ pubkey: a.pubkey, account: a.account }));
 }
 
 export async function getTokenBalance(

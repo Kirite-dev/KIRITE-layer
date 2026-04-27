@@ -1,6 +1,5 @@
 import { Keypair } from "@solana/web3.js";
 import nacl from "tweetnacl";
-import { ElGamalKeypair } from "../types";
 
 /** Deterministic keypair from seed + index via SHA-512. */
 export function deriveKeypair(seed: Uint8Array, index: number = 0): Keypair {
@@ -12,26 +11,7 @@ export function deriveKeypair(seed: Uint8Array, index: number = 0): Keypair {
   return Keypair.fromSeed(secretKey);
 }
 
-/** Derives ElGamal keypair from Solana keypair via domain-separated SHA-512. */
-export function deriveElGamalKeypair(solanaKeypair: Keypair): ElGamalKeypair {
-  const domain = Buffer.from("kirite-elgamal-v1");
-  const input = Buffer.concat([domain, Buffer.from(solanaKeypair.secretKey.slice(0, 32))]);
-  const hash = nacl.hash(input);
-  const secretKey = hash.slice(0, 32);
-
-  const clampedSecret = new Uint8Array(secretKey);
-  clampedSecret[0] &= 248;
-  clampedSecret[31] &= 127;
-  clampedSecret[31] |= 64;
-
-  const keyPair = nacl.box.keyPair.fromSecretKey(clampedSecret);
-
-  return {
-    publicKey: keyPair.publicKey,
-    secretKey: clampedSecret,
-  };
-}
-
+/** Derives the stealth-address VIEW keypair (Curve25519) from a Solana keypair via domain-separated SHA-512. */
 export function deriveViewingKeypair(solanaKeypair: Keypair): { publicKey: Uint8Array; secretKey: Uint8Array } {
   const domain = Buffer.from("kirite-viewing-v1");
   const input = Buffer.concat([domain, Buffer.from(solanaKeypair.secretKey.slice(0, 32))]);
@@ -50,6 +30,7 @@ export function deriveViewingKeypair(solanaKeypair: Keypair): { publicKey: Uint8
   };
 }
 
+/** Derives the stealth-address SPEND keypair (Curve25519) from a Solana keypair via domain-separated SHA-512. */
 export function deriveSpendingKeypair(solanaKeypair: Keypair): { publicKey: Uint8Array; secretKey: Uint8Array } {
   const domain = Buffer.from("kirite-spending-v1");
   const input = Buffer.concat([domain, Buffer.from(solanaKeypair.secretKey.slice(0, 32))]);
@@ -99,4 +80,3 @@ export function randomBytes(length: number): Uint8Array {
 export function hash256(input: Uint8Array): Uint8Array {
   return nacl.hash(input).slice(0, 32);
 }
-// kp rev #19

@@ -1,79 +1,5 @@
-import { PublicKey, Keypair, Connection, TransactionSignature, Commitment } from "@solana/web3.js";
+import { PublicKey, Connection, TransactionSignature, Commitment } from "@solana/web3.js";
 import BN from "bn.js";
-
-export interface EncryptedAmount {
-  /** r * G */
-  ephemeralKey: Uint8Array;
-  /** m * G + r * pk */
-  ciphertext: Uint8Array;
-  randomness: Uint8Array;
-}
-
-export interface DecryptedTransfer {
-  amount: BN;
-  sender: PublicKey;
-  receiver: PublicKey;
-  mint: PublicKey;
-  timestamp: number;
-  slot: number;
-}
-
-export interface CurvePoint {
-  x: Uint8Array;
-  y: Uint8Array;
-}
-
-export type Scalar = Uint8Array;
-
-export interface ElGamalKeypair {
-  publicKey: Uint8Array;
-  secretKey: Uint8Array;
-}
-
-export interface ElGamalCiphertext {
-  commitment: Uint8Array;
-  handle: Uint8Array;
-}
-
-/** Range proof: value in [0, 2^64) */
-export interface RangeProof {
-  proof: Uint8Array;
-  commitment: Uint8Array;
-}
-
-/** Proves two ciphertexts encrypt the same value */
-export interface EqualityProof {
-  proof: Uint8Array;
-  challenge: Uint8Array;
-  response: Uint8Array;
-}
-
-export interface TransferProof {
-  rangeProof: RangeProof;
-  equalityProof: EqualityProof;
-  /** Proof that the sender has sufficient balance */
-  balanceProof: Uint8Array;
-}
-
-export interface DepositProof {
-  commitment: Uint8Array;
-  nullifier: Uint8Array;
-  proof: Uint8Array;
-}
-
-export interface WithdrawProof {
-  nullifier: Uint8Array;
-  root: Uint8Array;
-  proof: Uint8Array;
-  recipientHash: Uint8Array;
-}
-
-export interface ShieldPoolConfig {
-  denominations: BN[];
-  treeDepth: number;
-  authority: PublicKey;
-  mint: PublicKey;
-}
 
 export interface ShieldPoolState {
   poolId: PublicKey;
@@ -81,35 +7,49 @@ export interface ShieldPoolState {
   mint: PublicKey;
   tokenAccount: PublicKey;
   merkleRoot: Uint8Array;
+  historicalRoots: Uint8Array[];
   nextLeafIndex: number;
   treeDepth: number;
+  denomination: BN;
   totalDeposits: BN;
   totalWithdrawals: BN;
-  denominations: BN[];
   isPaused: boolean;
   bump: number;
 }
 
-/** Must be saved by the user -- required for withdrawal */
+/** Local note saved by the depositor; required to withdraw later. Never leaves the device. */
 export interface DepositNote {
-  commitment: Uint8Array;
-  nullifier: Uint8Array;
-  secret: Uint8Array;
-  amount: BN;
+  ns: Uint8Array;
+  bf: Uint8Array;
   leafIndex: number;
+  denomination: BN;
+  pool: PublicKey;
+  commitment: Uint8Array;
   timestamp: number;
-  poolId: string;
 }
 
 export interface MerklePath {
   siblings: Uint8Array[];
-  pathIndices: number[];
+  pathBits: number[];
 }
 
 export interface MerkleNode {
   hash: Uint8Array;
-  index: number;
   level: number;
+  index: number;
+}
+
+export interface Groth16Proof {
+  a: Uint8Array;
+  b: Uint8Array;
+  c: Uint8Array;
+}
+
+export interface WithdrawPublicInputs {
+  root: Uint8Array;
+  nullifierHash: Uint8Array;
+  denomination: BN;
+  recipientHash: Uint8Array;
 }
 
 export interface StealthMetaAddress {
@@ -127,86 +67,68 @@ export interface StealthPayment {
   address: PublicKey;
   ephemeralPubkey: Uint8Array;
   amount: BN;
-  mint: PublicKey;
+  mint?: PublicKey;
   timestamp: number;
+  txSignature: TransactionSignature;
   slot: number;
-  txSignature: string;
 }
 
 export interface StealthRegistryEntry {
   owner: PublicKey;
   metaAddress: StealthMetaAddress;
-  label: string;
-  createdAt: number;
+  registeredAt?: number;
+  createdAt?: number;
+  label?: string;
 }
 
 export interface KiriteClientConfig {
-  endpoint: string;
+  connection: Connection;
+  endpoint?: string;
   commitment?: Commitment;
-  wallet?: Keypair;
-  programId?: PublicKey;
+  retryConfig?: RetryConfig;
   confirmTimeout?: number;
-  maxRetries?: number;
-  skipPreflight?: boolean;
 }
 
 export interface TransactionOptions {
+  priorityFee?: number | "dynamic";
+  computeUnitLimit?: number;
   skipPreflight?: boolean;
-  maxRetries?: number;
   commitment?: Commitment;
   preflightCommitment?: Commitment;
 }
 
 export interface RetryConfig {
   maxRetries: number;
-  baseDelay: number;
-  maxDelay: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
   backoffMultiplier: number;
-}
-
-export interface ConfidentialTransferParams {
-  recipient: PublicKey;
-  amount: BN;
-  mint: PublicKey;
-  recipientElGamalPubkey: Uint8Array;
-  memo?: string;
-}
-
-export interface ConfidentialTransferResult {
-  signature: TransactionSignature;
-  encryptedAmount: EncryptedAmount;
-  proof: TransferProof;
-  slot: number;
+  /** Alias for initialDelayMs (legacy compat). */
+  baseDelay?: number;
+  /** Alias for maxDelayMs (legacy compat). */
+  maxDelay?: number;
 }
 
 export interface DepositParams {
-  poolId: PublicKey;
-  amount: BN;
-  mint: PublicKey;
+  denomination: BN;
+  payer: PublicKey;
+  options?: TransactionOptions;
 }
 
 export interface DepositResult {
   signature: TransactionSignature;
   note: DepositNote;
-  slot: number;
+  leafIndex: number;
 }
 
 export interface WithdrawParams {
-  poolId: PublicKey;
   note: DepositNote;
-  recipient: PublicKey;
-  relayerFee?: BN;
+  recipient: PublicKey | StealthAddress;
+  options?: TransactionOptions;
 }
 
 export interface WithdrawResult {
   signature: TransactionSignature;
-  amount: BN;
-  recipient: PublicKey;
-  slot: number;
-}
-
-export interface GenerateStealthParams {
-  metaAddress: StealthMetaAddress;
+  nullifierHash: Uint8Array;
 }
 
 export interface ScanStealthParams {
@@ -216,43 +138,27 @@ export interface ScanStealthParams {
   toSlot?: number;
 }
 
-export interface ConfidentialTransferEvent {
-  sender: PublicKey;
-  recipient: PublicKey;
-  encryptedAmount: EncryptedAmount;
-  mint: PublicKey;
-  slot: number;
-  timestamp: number;
-  signature: string;
-}
-
-export interface ShieldDepositEvent {
-  depositor: PublicKey;
-  poolId: PublicKey;
+export interface DepositCommittedEvent {
+  pool: PublicKey;
   commitment: Uint8Array;
   leafIndex: number;
-  amount: BN;
   slot: number;
-  timestamp: number;
-  signature: string;
 }
 
-export interface ShieldWithdrawEvent {
+export interface WithdrawEvent {
+  pool: PublicKey;
+  nullifierHash: Uint8Array;
   recipient: PublicKey;
-  poolId: PublicKey;
-  nullifier: Uint8Array;
-  amount: BN;
   slot: number;
-  timestamp: number;
-  signature: string;
 }
 
 export interface StealthAnnouncementEvent {
   ephemeralPubkey: Uint8Array;
-  stealthAddress: PublicKey;
   viewTag: number;
-  slot: number;
+  stealthAddress: PublicKey;
+  amount?: BN;
+  mint?: PublicKey;
   timestamp: number;
-  signature: string;
+  signature: TransactionSignature;
+  slot: number;
 }
-// type rev #6
