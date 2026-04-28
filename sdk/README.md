@@ -108,16 +108,6 @@ const sig = await stake({
 });
 ```
 
-## Status
-
-| Component                          | Status                                        |
-| ---------------------------------- | --------------------------------------------- |
-| `$KIRITE` token (Raydium)          | live on Solana mainnet                        |
-| Staking program                    | deployed on Solana mainnet                    |
-| Privacy program (Shield + Stealth) | end-to-end on devnet, mainnet rollout         |
-| Relayer (OFAC screening)           | devnet, mainnet pending privacy program       |
-| `@kirite/sdk` (this package)       | v0.5.x on npm                                 |
-
 > Token CA: `7iRJcjWHQMvdMXufPxLWBqfmBvikzETYTyjqnyCjpump`
 
 ## How privacy works

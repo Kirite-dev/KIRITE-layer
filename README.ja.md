@@ -137,8 +137,8 @@ KIRITE-layer/
 │       ├── stealth/           # DKSAP ユーティリティ
 │       ├── utils/
 │       └── *.ts               # types / constants / errors
-├── scripts/                   # devnet 用ヘルパー / 初期化スクリプト
-├── tests/                     # devnet 統合テスト
+├── scripts/                   # 運用ヘルパー / 初期化スクリプト
+├── tests/                     # 統合テスト
 └── docs/                      # プロトコル仕様
 ```
 

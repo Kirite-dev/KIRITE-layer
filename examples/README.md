@@ -1,6 +1,6 @@
 # examples
 
-Runnable scripts demonstrating the KIRITE SDK. Requires a funded devnet wallet at `~/.config/solana/id.json`.
+Runnable scripts demonstrating the KIRITE SDK. Requires a funded Solana wallet at `~/.config/solana/id.json`.
 
 ## Run
 

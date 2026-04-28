@@ -8,9 +8,8 @@
 - [x] On-chain program (Anchor, 28/28 tests passing)
 - [x] TypeScript SDK (`@kirite/sdk`)
 - [x] CLI tool (`kirite`)
-- [x] Devnet deployment (`4bUHrDPuRcoYPU7UTLojXtxJsWoCj3HJbKX9oLnEnYy6`)
 - [x] Runnable examples (`examples/`)
-- [x] CI/CD with devnet integration tests
+- [x] CI/CD with integration tests
 - [x] IDL JSON exposed at `programs/kirite/idl/kirite.json`
 - [x] Security policy + code of conduct
 - [x] Japanese + English README

@@ -2,7 +2,7 @@
 
 On-chain Anchor program for the KIRITE privacy protocol.
 
-**Program ID (devnet):** `4bUHrDPuRcoYPU7UTLojXtxJsWoCj3HJbKX9oLnEnYy6`
+**Program ID:** `FjYwYT9PDcW2UmM2siXpURjSSCDoXTvviqb3V8amzusL`
 
 ## Build
 

@@ -135,8 +135,8 @@ KIRITE-layer/
 │       ├── stealth/           # DKSAP utilities
 │       ├── utils/
 │       └── *.ts               # types, constants, errors
-├── scripts/                   # devnet helpers, init scripts
-├── tests/                     # devnet integration tests
+├── scripts/                   # operational helpers, init scripts
+├── tests/                     # integration tests
 └── docs/                      # protocol spec
 ```
 
