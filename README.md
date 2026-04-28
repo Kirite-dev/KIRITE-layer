@@ -49,20 +49,6 @@ KIRITE breaks the deposit ↔ withdraw link and hides the recipient address. Not
 
 Privacy requires sending in one of the fixed denominations: `0.01` / `0.05` / `0.1` / `1` / `10` SOL. Every deposit and withdraw in a pool moves the same exact amount, so observers cannot match a withdraw to its specific deposit. Anonymity is bounded by the active leaf count per pool (32,768 on v2 — Merkle height 15).
 
-## Status
-
-| Component                          | Status                                                |
-| ---------------------------------- | ----------------------------------------------------- |
-| `$KIRITE` token (Raydium)          | live on Solana mainnet                                |
-| Staking program                    | live on Solana mainnet                                |
-| Privacy program (Shield + Stealth) | end-to-end verified                                   |
-| Relayer (OFAC screening)           | operational                                           |
-| `@kirite/sdk` (npm)                | v0.5.8 on npm                                         |
-| Telegram miniapp                   | in private preview                                    |
-| Chrome extension                   | in development                                        |
-
-The privacy program is fully verified end-to-end. Real Groth16 proofs, real Poseidon Merkle tree, real nullifier PDAs, real stealth-address withdraws.
-
 ## Tech stack
 
 - **On-chain:** Anchor / Rust, Solana native `alt_bn128` and `poseidon` syscalls
