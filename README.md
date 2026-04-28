@@ -47,7 +47,7 @@ Built on Solana's native `alt_bn128` and `poseidon` syscalls. Browser-side proof
 
 KIRITE breaks the deposit ↔ withdraw link and hides the recipient address. Notes stay on the user's device; the vault is PDA-locked.
 
-Privacy requires sending in one of the fixed denominations: `0.01` / `0.05` / `0.1` / `1` / `10` SOL. Every deposit and withdraw in a pool moves the same exact amount, so observers cannot match a withdraw to its specific deposit. Anonymity is bounded by the active leaf count per pool (32 on v1).
+Privacy requires sending in one of the fixed denominations: `0.01` / `0.05` / `0.1` / `1` / `10` SOL. Every deposit and withdraw in a pool moves the same exact amount, so observers cannot match a withdraw to its specific deposit. Anonymity is bounded by the active leaf count per pool (32,768 on v2 — Merkle height 15).
 
 ## Status
 
@@ -159,10 +159,10 @@ KIRITE-layer/
 | Active leaves | Upper bound on linkability per attempt |
 | ------------- | -------------------------------------- |
 | 1             | 100% (effectively transparent)         |
-| 5             | 20%                                    |
-| 16            | 6.25%                                  |
-| 32 (v1 cap)   | 3.1%                                   |
-| 1024 (planned) | 0.1%                                  |
+| 10            | 10%                                    |
+| 100           | 1%                                     |
+| 1,000         | 0.1%                                   |
+| 32,768 (v2 cap) | ~0.003%                              |
 
 These are upper bounds. Real-world adversaries combine timing and pattern analysis to narrow further. Practical privacy scales with traffic.
 

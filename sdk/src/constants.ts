@@ -2,14 +2,28 @@ import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { RetryConfig } from "./types";
 
-/** KIRITE shield pool program (mainnet — placeholder until mainnet deploy lands). */
+/**
+ * KIRITE shield pool program — currently deployed on devnet only.
+ * Mainnet rollout pending; this constant points at the live devnet
+ * program until then. Use KIRITE_DEVNET_PROGRAM_ID for explicitness.
+ */
 export const KIRITE_PROGRAM_ID = new PublicKey(
-  "KRTEpRYCuGR4N7EbMqQBNHGueaLqVMR26tV7K5aCSBs"
+  "FjYwYT9PDcW2UmM2siXpURjSSCDoXTvviqb3V8amzusL"
 );
 
-/** KIRITE shield pool program (devnet). */
+/** KIRITE shield pool program on Solana devnet (current production target). */
 export const KIRITE_DEVNET_PROGRAM_ID = new PublicKey(
-  "KRTEdv1YpRCuGR4N7EbMqQBNHGueaLqVMR26tGH8d3x"
+  "FjYwYT9PDcW2UmM2siXpURjSSCDoXTvviqb3V8amzusL"
+);
+
+/** $KIRITE staking program — deployed on Solana mainnet. */
+export const KIRITE_STAKING_PROGRAM_ID = new PublicKey(
+  "8LKqyAx7Uuyu4PqwD7RRGhxjLj1GnPgaEzUu4RUitYt3"
+);
+
+/** $KIRITE token mint (Token-2022 on Solana mainnet). */
+export const KIRITE_TOKEN_MINT = new PublicKey(
+  "7iRJcjWHQMvdMXufPxLWBqfmBvikzETYTyjqnyCjpump"
 );
 
 /** Account-PDA seeds used by the on-chain program. */
@@ -23,9 +37,9 @@ export const SEEDS = {
   STEALTH_ANNOUNCEMENT: Buffer.from("stealth_announcement"),
 } as const;
 
-/** v1 pools use a height-5 Merkle tree (32 leaves). */
-export const DEFAULT_TREE_DEPTH = 5;
-export const MAX_TREE_DEPTH = 10;
+/** v2 pools use a height-15 Merkle tree (32,768 leaves per pool — casual privacy). */
+export const DEFAULT_TREE_DEPTH = 15;
+export const MAX_TREE_DEPTH = 15;
 export const DEFAULT_TREE_CAPACITY = 1 << DEFAULT_TREE_DEPTH;
 
 /** Fixed-denomination ladder for v1 (lamports). */

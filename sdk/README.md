@@ -30,7 +30,7 @@ npm install @kirite/sdk @solana/web3.js
 ## What this package gives you
 
 - **Types** for the on-chain program: `DepositNote`, `ShieldPoolState`, `StealthMetaAddress`, `StealthAddress`, `StealthPayment`, `Groth16Proof`, `WithdrawPublicInputs`
-- **Constants** matching the deployed program: `KIRITE_PROGRAM_ID`, `DEFAULT_DENOMINATIONS` (0.01 / 0.05 / 0.1 / 1 / 10 SOL), `DEFAULT_TREE_DEPTH` (5), Merkle / nullifier seeds
+- **Constants** matching the deployed program: `KIRITE_PROGRAM_ID`, `DEFAULT_DENOMINATIONS` (0.01 / 0.05 / 0.1 / 1 / 10 SOL), `DEFAULT_TREE_DEPTH` (15 — 32,768 leaves per pool), Merkle / nullifier seeds
 - **Errors** that the on-chain program returns: `NullifierSpentError`, `TreeFullError`, `PoolFrozenError`, `InvalidDenominationError`, `RelayerError`, etc.
 - **Stealth-address helpers**: DKSAP meta-address generation, ECDH derivation, view-tag fast scanning, on-chain registry interactions
 - **Solana transport utilities**: connection helpers, transaction builder with priority-fee bumping, retry / backoff config

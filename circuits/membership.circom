@@ -125,4 +125,4 @@ template Membership(levels) {
 }
 
 // Tree height matches on-chain MERKLE_TREE_HEIGHT.
-component main {public [root, nullifierHash, amount, recipientHash]} = Membership(5);
+component main {public [root, nullifierHash, amount, recipientHash]} = Membership(15);

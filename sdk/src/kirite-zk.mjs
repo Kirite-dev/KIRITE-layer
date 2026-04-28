@@ -9,12 +9,20 @@ import {
   PublicKey,
   TransactionInstruction,
   SystemProgram,
+  ComputeBudgetProgram,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { createHash } from "node:crypto";
+
+// v2 deposits/withdraws need 600k CU because of the height-15 Merkle
+// hashing (deposit) + Groth16 verify (withdraw). Prepend this to the
+// transaction before the deposit/withdraw instruction.
+export function buildComputeUnitLimitIx(units = 600_000) {
+  return ComputeBudgetProgram.setComputeUnitLimit({ units });
+}
 
 export const KIRITE_PROGRAM_ID = new PublicKey(
   "FjYwYT9PDcW2UmM2siXpURjSSCDoXTvviqb3V8amzusL",
@@ -296,11 +304,11 @@ export async function fetchPoolLeaves(connection, poolKey, options = {}) {
 // ─── Account decoders ─────────────────────────────────────────────────
 
 const MAX_HISTORICAL_ROOTS = 3;
-const MERKLE_TREE_HEIGHT = 5;
+const MERKLE_TREE_HEIGHT = 15;
 
 /**
  * Decode a ShieldPool account (#[account(zero_copy)]).
- * Layout matches `programs/kirite/src/state/shield_pool.rs`.
+ * Layout matches `programs/kirite/src/state/shield_pool.rs` for v2 (height 15).
  *   [0..8]    discriminator
  *   [8..40]   mint
  *   [40..72]  operator
@@ -308,12 +316,12 @@ const MERKLE_TREE_HEIGHT = 5;
  *   [104..136] vault
  *   [136..168] current_root
  *   [168..264] historical_roots[3]    (32*3)
- *   [264..424] filled_subtrees[5]     (32*5)
- *   [424..432] denomination u64
- *   [432..440] total_deposits u64
- *   [440..448] total_withdrawals u64
- *   [448..456] fees_collected u64
- *   [456..464] timelock_seconds i64
+ *   [264..744] filled_subtrees[15]    (32*15)
+ *   [744..752] denomination u64
+ *   [752..760] total_deposits u64
+ *   [760..768] total_withdrawals u64
+ *   [768..776] fees_collected u64
+ *   [776..784] timelock_seconds i64
  *   [464..472] created_at i64
  *   [472..480] last_deposit_at i64
  *   [480..484] next_leaf_index u32

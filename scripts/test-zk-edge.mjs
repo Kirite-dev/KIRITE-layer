@@ -46,6 +46,7 @@ import {
   buildInitializeShieldPoolIx,
   buildDepositIx,
   buildWithdrawIx,
+  buildComputeUnitLimitIx,
   decodeShieldPool,
   fetchPoolLeaves,
 } from "../sdk/src/kirite-zk.mjs";
@@ -115,7 +116,10 @@ async function deposit(conn, payer, pool, vault, leafIndex) {
     shieldPool: pool,
     commitment,
   });
-  const sig = await conn.sendTransaction(new Transaction().add(ix), [payer]);
+  const sig = await conn.sendTransaction(
+    new Transaction().add(buildComputeUnitLimitIx(600_000), ix),
+    [payer]
+  );
   await conn.confirmTransaction(sig, "confirmed");
   return { ns, bf, leafIndex, commitment, sig };
 }
@@ -146,7 +150,10 @@ async function submitWithdraw(conn, payer, pool, vault, recipientAta, treasuryAt
     nullifierHash: publicInputs.nullifierHash,
     proofRoot: publicInputs.root,
   });
-  const sig = await conn.sendTransaction(new Transaction().add(ix), [payer]);
+  const sig = await conn.sendTransaction(
+    new Transaction().add(buildComputeUnitLimitIx(600_000), ix),
+    [payer]
+  );
   await conn.confirmTransaction(sig, "confirmed");
   return sig;
 }

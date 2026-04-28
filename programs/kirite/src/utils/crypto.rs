@@ -106,7 +106,7 @@ pub fn compute_nullifier_hash(nullifier_secret: &[u8; 32], leaf_index: u32) -> [
     keccak::hash(&preimage).to_bytes()
 }
 
-pub const MERKLE_TREE_HEIGHT: usize = 5;
+pub const MERKLE_TREE_HEIGHT: usize = 15;
 pub const MERKLE_TREE_CAPACITY: u32 = 1 << MERKLE_TREE_HEIGHT;
 
 // Tree hashing uses Solana's native Poseidon syscall (BN254 / circom
@@ -118,7 +118,7 @@ pub const MERKLE_TREE_CAPACITY: u32 = 1 << MERKLE_TREE_HEIGHT;
 // parameter blob that crashes BPF stack limits when light-poseidon is
 // used directly.
 
-use solana_program::poseidon::{hashv, Endianness, Parameters};
+use solana_poseidon::{hashv, Endianness, Parameters};
 
 #[inline(never)]
 fn poseidon_hash(inputs: &[&[u8]]) -> [u8; 32] {

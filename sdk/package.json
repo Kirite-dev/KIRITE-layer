@@ -1,6 +1,6 @@
 {
   "name": "@kirite/sdk",
-  "version": "0.5.4",
+  "version": "0.5.8",
   "description": "TypeScript SDK for the KIRITE privacy protocol on Solana. ZK shield pool with stealth-address recipients.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -60,10 +60,14 @@
   "sideEffects": false,
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0",
+    "@noble/hashes": "^1.4.0",
+    "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.87.0",
     "bn.js": "^5.2.1",
-    "tweetnacl": "^1.0.3",
-    "bs58": "^5.0.0"
+    "bs58": "^5.0.0",
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "typescript": "^5.3.0",

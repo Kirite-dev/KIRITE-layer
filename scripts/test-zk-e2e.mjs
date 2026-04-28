@@ -39,6 +39,7 @@ import {
   buildInitializeShieldPoolIx,
   buildDepositIx,
   buildWithdrawIx,
+  buildComputeUnitLimitIx,
   decodeShieldPool,
   fetchPoolLeaves,
 } from "../sdk/src/kirite-zk.mjs";
@@ -55,7 +56,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const DENOM_LAMPORTS = 5_000_000n; // 0.005 SOL — fresh pool to isolate from prior runs
+const DENOM_LAMPORTS = 12_345_678n; // unique denomination = fresh pool with v2 (height 15) layout
 const TIMELOCK_SECONDS = 600n;      // legacy field; validation still requires >= 600 even though withdraw no longer enforces
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
 
@@ -177,7 +178,7 @@ async function depositOne(conn, payer, pool, vault) {
     shieldPool: pool,
     commitment,
   });
-  const depTx = new Transaction().add(depIx);
+  const depTx = new Transaction().add(buildComputeUnitLimitIx(600_000), depIx);
   const sig = await conn.sendTransaction(depTx, [payer]);
   await conn.confirmTransaction(sig, "confirmed");
   console.log("  deposit tx:", sig);
@@ -261,7 +262,7 @@ async function withdrawOne(conn, payer, pool, vault, note) {
     nullifierHash: publicInputs.nullifierHash,
     proofRoot: publicInputs.root,
   });
-  const wTx = new Transaction().add(wIx);
+  const wTx = new Transaction().add(buildComputeUnitLimitIx(600_000), wIx);
   const wSig = await conn.sendTransaction(wTx, [payer]);
   await conn.confirmTransaction(wSig, "confirmed");
   console.log("  withdraw tx:", wSig);
