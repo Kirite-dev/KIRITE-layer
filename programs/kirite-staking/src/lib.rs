@@ -13,27 +13,25 @@
 // and either added to their unclaimed bucket or paid out.
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{
-    self, Mint, TokenAccount, TokenInterface, TransferChecked,
-};
+use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 
 declare_id!("8LKqyAx7Uuyu4PqwD7RRGhxjLj1GnPgaEzUu4RUitYt3");
 
-pub const MIN_STAKE: u64 = 1_000;          // ~atomic dust filter
+pub const MIN_STAKE: u64 = 1_000; // ~atomic dust filter
 pub const SCALE: u128 = 1_000_000_000_000; // 1e12 fixed-point for acc index
-pub const ENTRY_FEE_LAMPORTS: u64 = 0;     // no entry fee — matches the
-                                            // industry default for staking
-                                            // (Lido/Marinade/Curve/Pendle).
+pub const ENTRY_FEE_LAMPORTS: u64 = 0; // no entry fee — matches the
+                                       // industry default for staking
+                                       // (Lido/Marinade/Curve/Pendle).
 
 // Lock options. Multiplier is in basis points (×100). Longer locks earn
 // proportionally more of the fee distribution. Minimum lock is 30 days
 // to filter out hot-money positions and align with serious DeFi norms
 // (Curve, Pendle, Velodrome all enforce a non-trivial minimum lock).
 pub const LOCK_OPTIONS: &[(u32, u32)] = &[
-    (30,  150),  // 30 days
-    (90,  250),  // 90 days
-    (180, 400),  // 180 days
-    (365, 800),  // 365 days
+    (30, 150),  // 30 days
+    (90, 250),  // 90 days
+    (180, 400), // 180 days
+    (365, 800), // 365 days
 ];
 
 const SECONDS_PER_DAY: i64 = 86_400;
@@ -100,8 +98,7 @@ pub mod kirite_staking {
 
     pub fn stake(ctx: Context<Stake>, amount: u64, lock_days: u32) -> Result<()> {
         require!(amount >= MIN_STAKE, StakingError::AmountTooSmall);
-        let multiplier = lock_multiplier(lock_days)
-            .ok_or(StakingError::InvalidLockOption)?;
+        let multiplier = lock_multiplier(lock_days).ok_or(StakingError::InvalidLockOption)?;
 
         let pool = &mut ctx.accounts.staking_pool;
         let stake = &mut ctx.accounts.stake_account;
@@ -161,7 +158,10 @@ pub mod kirite_staking {
             stake.owner = ctx.accounts.staker.key();
             stake.bump = ctx.bumps.stake_account;
         }
-        stake.amount = stake.amount.checked_add(amount).ok_or(StakingError::Overflow)?;
+        stake.amount = stake
+            .amount
+            .checked_add(amount)
+            .ok_or(StakingError::Overflow)?;
         stake.lock_days = lock_days;
         stake.stake_at = clock.unix_timestamp;
         stake.weight = (stake.amount as u128)
@@ -263,12 +263,13 @@ pub mod kirite_staking {
         if !pool.is_draining {
             let unlock_at = stake
                 .stake_at
-                .checked_add((stake.lock_days as i64).checked_mul(SECONDS_PER_DAY).ok_or(StakingError::Overflow)?)
+                .checked_add(
+                    (stake.lock_days as i64)
+                        .checked_mul(SECONDS_PER_DAY)
+                        .ok_or(StakingError::Overflow)?,
+                )
                 .ok_or(StakingError::Overflow)?;
-            require!(
-                clock.unix_timestamp >= unlock_at,
-                StakingError::StillLocked
-            );
+            require!(clock.unix_timestamp >= unlock_at, StakingError::StillLocked);
         }
         require!(stake.amount > 0, StakingError::NothingStaked);
 
@@ -305,7 +306,11 @@ pub mod kirite_staking {
         // for Token-2022 mints and accepted by legacy SPL Token.
         let amount = stake.amount;
         let pool_key = pool.key();
-        let va_seeds: &[&[u8]] = &[b"vault_authority", pool_key.as_ref(), &[pool.vault_authority_bump]];
+        let va_seeds: &[&[u8]] = &[
+            b"vault_authority",
+            pool_key.as_ref(),
+            &[pool.vault_authority_bump],
+        ];
         let va_signer = &[va_seeds];
         let decimals = ctx.accounts.kirite_mint.decimals;
         token_interface::transfer_checked(
@@ -380,7 +385,10 @@ fn accrue(pool: &Account<StakingPool>, stake: &mut Account<StakeAccount>) {
 }
 
 fn lock_multiplier(lock_days: u32) -> Option<u32> {
-    LOCK_OPTIONS.iter().find(|(d, _)| *d == lock_days).map(|(_, m)| *m)
+    LOCK_OPTIONS
+        .iter()
+        .find(|(d, _)| *d == lock_days)
+        .map(|(_, m)| *m)
 }
 
 // ─── Accounts ─────────────────────────────────────────────────────────

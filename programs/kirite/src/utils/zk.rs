@@ -118,9 +118,8 @@ pub fn verify_membership_proof(
     // groth16-solana expects proof_a with y already negated.
     let proof_a = negate_g1_y(&proof_a_raw);
 
-    let mut verifier =
-        Groth16Verifier::new(&proof_a, &proof_b, &proof_c, public_inputs, &VK)
-            .map_err(|_| error!(KiriteError::InvalidAmountProof))?;
+    let mut verifier = Groth16Verifier::new(&proof_a, &proof_b, &proof_c, public_inputs, &VK)
+        .map_err(|_| error!(KiriteError::InvalidAmountProof))?;
 
     verifier
         .verify()
