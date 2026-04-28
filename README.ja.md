@@ -10,7 +10,7 @@
 
 <a href="https://github.com/Kirite-dev/KIRITE-layer/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c8ff00?style=flat-square" alt="MIT License"/></a>
 <a href="https://github.com/Kirite-dev/KIRITE-layer/actions"><img src="https://img.shields.io/badge/build-passing-c8ff00?style=flat-square" alt="build"/></a>
-<a href="https://github.com/Kirite-dev/KIRITE-layer/releases"><img src="https://img.shields.io/badge/version-v0.5.7-c8ff00?style=flat-square" alt="version"/></a>
+<a href="https://github.com/Kirite-dev/KIRITE-layer/releases"><img src="https://img.shields.io/badge/version-v0.5.8-c8ff00?style=flat-square" alt="version"/></a>
 <a href="https://www.npmjs.com/package/@kirite/sdk"><img src="https://img.shields.io/badge/npm-%40kirite%2Fsdk-c8ff00?style=flat-square" alt="npm"/></a>
 <a href="https://x.com/KiriteDev"><img src="https://img.shields.io/badge/x-@KiriteDev-c8ff00?style=flat-square" alt="x"/></a>
 <a href="https://kirite.dev"><img src="https://img.shields.io/badge/website-kirite.dev-c8ff00?style=flat-square" alt="website"/></a>
@@ -59,7 +59,7 @@ KIRITE は入金 ↔ 出金のリンクを断ち、受信者アドレスを隠�
 | ステーキングプログラム               | Solana mainnet ライブ                                                 |
 | プライバシープログラム (Shield + Stealth) | end-to-end 検証完了                                                |
 | Relayer (OFAC スクリーニング)       | 稼働中                                                                |
-| `@kirite/sdk` (npm)                | v0.5.7 公開済み                                                       |
+| `@kirite/sdk` (npm)                | v0.5.8 公開済み                                                       |
 | Telegram miniapp                   | クローズドプレビュー                                                   |
 | Chrome 拡張機能                    | 開発中                                                                |
 

@@ -6,7 +6,7 @@
 
 <a href="https://github.com/Kirite-dev/KIRITE-layer/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="MIT License"/></a>
 <a href="https://github.com/Kirite-dev/KIRITE-layer/actions"><img src="https://img.shields.io/badge/build-passing-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="build passing"/></a>
-<a href="https://github.com/Kirite-dev/KIRITE-layer/releases"><img src="https://img.shields.io/badge/version-0.5.7-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="v0.5.7"/></a>
+<a href="https://github.com/Kirite-dev/KIRITE-layer/releases"><img src="https://img.shields.io/badge/version-0.5.8-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="v0.5.8"/></a>
 <a href="https://www.npmjs.com/package/@kirite/sdk"><img src="https://img.shields.io/badge/npm-%40kirite%2Fsdk-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="npm"/></a>
 <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.75%2B-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="rust 1.75+"/></a>
 <a href="https://www.anchor-lang.com"><img src="https://img.shields.io/badge/anchor-0.30-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="anchor 0.30"/></a>
@@ -57,7 +57,7 @@ Privacy requires sending in one of the fixed denominations: `0.01` / `0.05` / `0
 | Staking program                    | live on Solana mainnet                                |
 | Privacy program (Shield + Stealth) | end-to-end verified                                   |
 | Relayer (OFAC screening)           | operational                                           |
-| `@kirite/sdk` (npm)                | v0.5.7 on npm                                         |
+| `@kirite/sdk` (npm)                | v0.5.8 on npm                                         |
 | Telegram miniapp                   | in private preview                                    |
 | Chrome extension                   | in development                                        |
 
