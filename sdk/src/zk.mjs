@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Tree height matches the on-chain MERKLE_TREE_HEIGHT constant.
-export const MERKLE_HEIGHT = 5;
+export const MERKLE_HEIGHT = 15;
 export const MERKLE_CAPACITY = 1 << MERKLE_HEIGHT;
 
 // Domain separators. The "empty leaf" sentinel matches the keccak

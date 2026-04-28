@@ -59,6 +59,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DENOM_LAMPORTS = 12_345_678n; // unique denomination = fresh pool with v2 (height 15) layout
 const TIMELOCK_SECONDS = 600n;      // legacy field; validation still requires >= 600 even though withdraw no longer enforces
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
+const SCAN_RPC_URL = process.env.SCAN_RPC_URL || RPC_URL;
 
 const WASM_PATH = path.resolve(
   __dirname,
@@ -222,7 +223,8 @@ async function withdrawOne(conn, payer, pool, vault, note) {
   // Pull every prior deposit from program logs so the proof reconstructs
   // the same root the on-chain pool currently sees.
   console.log("scanning pool leaves from event log…");
-  const allLeaves = await fetchPoolLeaves(conn, pool, { limit: 1000 });
+  const scanConn = SCAN_RPC_URL === RPC_URL ? conn : new Connection(SCAN_RPC_URL, "confirmed");
+  const allLeaves = await fetchPoolLeaves(scanConn, pool, { limit: 1000 });
   console.log(`  recovered ${allLeaves.length} leaf entries`);
 
   console.log("generating Groth16 proof…");
