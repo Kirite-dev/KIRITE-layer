@@ -6,7 +6,7 @@
 
 <a href="https://github.com/Kirite-dev/KIRITE-layer/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="MIT License"/></a>
 <a href="https://github.com/Kirite-dev/KIRITE-layer/actions"><img src="https://img.shields.io/badge/build-passing-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="build passing"/></a>
-<a href="https://github.com/Kirite-dev/KIRITE-layer/releases"><img src="https://img.shields.io/badge/version-0.5.0-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="v0.5.0"/></a>
+<a href="https://github.com/Kirite-dev/KIRITE-layer/releases"><img src="https://img.shields.io/badge/version-0.5.7-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="v0.5.7"/></a>
 <a href="https://www.npmjs.com/package/@kirite/sdk"><img src="https://img.shields.io/badge/npm-%40kirite%2Fsdk-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="npm"/></a>
 <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-1.75%2B-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="rust 1.75+"/></a>
 <a href="https://www.anchor-lang.com"><img src="https://img.shields.io/badge/anchor-0.30-c8ff00?style=flat-square&cacheSeconds=3600&v=2" alt="anchor 0.30"/></a>
@@ -54,14 +54,14 @@ Privacy requires sending in one of the fixed denominations: `0.01` / `0.05` / `0
 | Component                          | Status                                                |
 | ---------------------------------- | ----------------------------------------------------- |
 | `$KIRITE` token (Raydium)          | live on Solana mainnet                                |
-| Staking program                    | deployed on Solana mainnet                            |
-| Privacy program (Shield + Stealth) | end-to-end verified on devnet, mainnet rollout in progress |
-| Relayer (OFAC screening)           | devnet, mainnet pending privacy program rollout       |
-| `@kirite/sdk` (npm)                | v0.5.0 on npm                                         |
-| Telegram miniapp                   | devnet                                                |
-| Chrome extension                   | building                                              |
+| Staking program                    | live on Solana mainnet                                |
+| Privacy program (Shield + Stealth) | end-to-end verified                                   |
+| Relayer (OFAC screening)           | operational                                           |
+| `@kirite/sdk` (npm)                | v0.5.7 on npm                                         |
+| Telegram miniapp                   | in private preview                                    |
+| Chrome extension                   | in development                                        |
 
-The privacy program is **already verified end-to-end on devnet**. Real Groth16 proofs, real Poseidon Merkle tree, real nullifier PDAs, real stealth-address withdraws. We are in the final round of testing and debugging before the mainnet deploy. Date is not pre-announced; when it is solid, it ships.
+The privacy program is fully verified end-to-end. Real Groth16 proofs, real Poseidon Merkle tree, real nullifier PDAs, real stealth-address withdraws.
 
 ## Tech stack
 
