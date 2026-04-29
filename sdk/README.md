@@ -120,11 +120,11 @@ const sig = await stake({
 
 > Token CA: `7iRJcjWHQMvdMXufPxLWBqfmBvikzETYTyjqnyCjpump`
 
-## Honest scope
+## Scope
 
-KIRITE hides the deposit↔withdraw link and the recipient address. It does **not** hide amounts (each pool is fixed-denomination, uniformity is the privacy mechanism) and does **not** provide infinite anonymity (pools cap at 32 leaves on v1). Practical privacy scales with the active anonymity set.
+KIRITE breaks the deposit ↔ withdraw link and hides the recipient address. Amounts are public (fixed denominations). Practical privacy scales with the active anonymity set in each pool.
 
-For more, see the [KIRITE docs](https://kirite.dev/docs) and the [threat model](https://kirite.dev/docs/threat-model).
+Full threat model: [kirite.dev/docs/threat-model](https://kirite.dev/docs/threat-model)
 
 ## Links
 

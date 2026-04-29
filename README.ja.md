@@ -45,17 +45,11 @@ flowchart LR
 
 Solana ネイティブの `alt_bn128` および `poseidon` syscall を使用。証明生成はブラウザで snarkjs WASM (~1秒 デスクトップ / ~3秒 モバイル)。Non-custodial: プールの authority もユーザー資金を移動できません。
 
-## KIRITE が守るもの・守らないもの
+## スコープ
 
-**守るもの:**
-- 入金 ↔ 出金のリンク (Groth16 membership proof は nullifier hash と Merkle root のみを公開)
-- 受信者アドレス (ワンタイムステルス出力。受信者のメインウォレットはオンチェーンに登場しない)
-- Non-custodial 性 (note 素材はユーザー端末に留まる。vault は PDA でロック)
+KIRITE は入金 ↔ 出金のリンクを断ち、受信者アドレスを隠します。Note はユーザー端末に留まり、vault は PDA でロックされます。
 
-**守らないもの:**
-- 金額 (各プールは固定単位。均一性そのものがプライバシー機構)
-- 無限の匿名性 (v1 は 1 プールあたり 32 leaves 上限。実質プライバシーはアクティブな匿名集合に比例)
-- 残高暗号化 (Solana Confidential Balances は別 primitive。規制環境が許せば KIRITE も将来そのモデルに移行予定)
+金額は公開 (固定単位)。匿名性はプールごとのアクティブ leaf 数 (v1 は 32) に依存します。
 
 ## ステータス
 

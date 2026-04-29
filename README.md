@@ -43,17 +43,11 @@ Two pieces working together:
 
 Built on Solana's native `alt_bn128` and `poseidon` syscalls. Browser-side proof generation via snarkjs WASM (~1s desktop, ~3s mobile). Non-custodial: the pool authority cannot move user funds.
 
-## What KIRITE does and does not do
+## Scope
 
-**Does:**
-- Hide the deposit ↔ withdraw link (Groth16 membership proof reveals only a nullifier hash and a Merkle root)
-- Hide the recipient address (one-time stealth address; recipient's main wallet never appears on-chain)
-- Stay non-custodial (note material lives on the user's device; vault is PDA-locked)
+KIRITE breaks the deposit ↔ withdraw link and hides the recipient address. Notes stay on the user's device; the vault is PDA-locked.
 
-**Does not:**
-- Hide amounts (each pool is fixed denomination; uniformity is the privacy mechanism)
-- Provide infinite anonymity (v1 pools cap at 32 leaves; practical privacy scales with the active anonymity set)
-- Encrypt account balances (Solana Confidential Balances is a separate primitive; KIRITE may migrate when the regulatory landscape allows it)
+Amounts are public (fixed denominations). Anonymity is bounded by the active leaf count per pool (32 on v1).
 
 ## Status
 
