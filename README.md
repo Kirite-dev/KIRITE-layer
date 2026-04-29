@@ -147,8 +147,7 @@ KIRITE-layer/
 │       ├── stealth/           # DKSAP utilities
 │       ├── utils/
 │       └── *.ts               # types, constants, errors
-├── scripts/                   # operational helpers, init scripts
-├── tests/                     # integration tests
+├── scripts/                   # operational helpers, init scripts (v3 only)
 └── (full docs live at kirite.dev/docs)
 ```
 
