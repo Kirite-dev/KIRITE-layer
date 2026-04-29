@@ -149,7 +149,7 @@ KIRITE-layer/
 │       └── *.ts               # types, constants, errors
 ├── scripts/                   # operational helpers, init scripts
 ├── tests/                     # integration tests
-└── docs/                      # protocol spec
+└── (full docs live at kirite.dev/docs)
 ```
 
 ## Anonymity-set bounds

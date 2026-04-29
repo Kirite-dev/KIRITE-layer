@@ -151,7 +151,7 @@ KIRITE-layer/
 │       └── *.ts               # types / constants / errors
 ├── scripts/                   # 運用ヘルパー / 初期化スクリプト
 ├── tests/                     # 統合テスト
-└── docs/                      # プロトコル仕様
+└── (詳細仕様は kirite.dev/docs)
 ```
 
 ## 匿名集合の上界
