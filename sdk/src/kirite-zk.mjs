@@ -128,6 +128,7 @@ export function buildInitializeShieldPoolIx({
 }) {
   const [shieldPool] = deriveShieldPool(mint, denomination);
   const [protocolConfig] = deriveProtocolConfig();
+  const [vaultAuthority] = deriveVaultAuthority(shieldPool);
 
   const data = Buffer.concat([
     disc("initialize_shield_pool"),
@@ -140,6 +141,10 @@ export function buildInitializeShieldPoolIx({
     keys: [
       { pubkey: shieldPool, isSigner: false, isWritable: true },
       { pubkey: protocolConfig, isSigner: false, isWritable: true },
+      // HIGH-002: vault_authority PDA participates in init so the bump
+      // is captured at pool creation and the vault.owner constraint can
+      // be checked by the program.
+      { pubkey: vaultAuthority, isSigner: false, isWritable: false },
       { pubkey: vault, isSigner: false, isWritable: true },
       { pubkey: mint, isSigner: false, isWritable: false },
       { pubkey: operator, isSigner: true, isWritable: true },
